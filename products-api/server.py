@@ -1,98 +1,68 @@
 import os
 import glob
-from datetime import datetime
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 
-apps = FastAPI()
+app = FastAPI()
 
-# Define required columns for each file type
+# Required columns for each file type
 REQUIRED_COLUMNS = {
     "products": ["product_id", "product_name", "category", "price", "stock_quantity", "reorder_level", "supplier_id"],
-    "customers": ["customer_id", "name", "city", "email", "phone_number", "loyalty_tier"],  
+    "customers": ["customer_id", "name", "city", "email", "phone_number", "loyalty_tier"],
     "suppliers": ["supplier_id", "supplier_name", "contact_details", "region"]
 }
 
-# Base directory where CSV files are stored
-base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "SampleData"))
+# Base directory for CSV files
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "SampleData"))
 
-def get_file(file_type: str, filename: str = None) :
-    """Retrieve the latest or specific file of the given type."""
-    files = glob.glob(os.path.join(base_dir, f"{file_type}_*.csv"))
-    
+def get_latest_file(file_type: str, filename: str = None) :
+    """Retrieve the latest available CSV file or a specific file if given."""
+    files = glob.glob(os.path.join(BASE_DIR, f"{file_type}_*.csv"))
     if not files:
-        raise HTTPException(status_code=404, detail=f"No valid {file_type} CSV file found.")
+        raise HTTPException(status_code=404, detail=f"No {file_type} CSV files found.")
 
-    today = datetime.today().strftime("%Y%m%d")
-    latest_file, latest_date = None, "00000000"
-
-    for file in files:
-        base_filename = os.path.basename(file)
-        file_date = base_filename[-12:-4]  # Extract date (YYYYMMDD)
-
-        # Validate date format
-        if not (file_date.isdigit() and len(file_date) == 8):
-            continue  # Skip files with invalid date format
-
-        # Skip future-dated files
-        if file_date > today:
-            continue
-
-        # If a specific filename is provided, return it if it exists
-        if filename and base_filename == filename:
-            return file
-
-        # Otherwise, track the latest file
-        if file_date > latest_date:
-            latest_file, latest_date = file, file_date
-
-    if filename and latest_file is None:
+    if filename:
+        file_path = os.path.join(BASE_DIR, filename)
+        if file_path in files:
+            return file_path
         raise HTTPException(status_code=404, detail=f"File {filename} not found.")
-    
-    if latest_file is None:
-        raise HTTPException(status_code=404, detail=f"No valid {file_type} CSV file found.")
 
-    return latest_file
+    # Get the latest file based on modification time
+    return max(files, key=os.path.getmtime)
 
-def read_csv_file(file_path: str, file_type: str) -> pd.DataFrame:
-    """Read and validate a CSV file."""
+def read_csv(file_path: str, file_type: str) :
+    """Reads a CSV file and validates its structure."""
     try:
-        df = pd.read_csv(file_path)
-    except pd.errors.EmptyDataError:
-        raise HTTPException(status_code=500, detail=f"CSV file {file_path} is empty.")
-    except pd.errors.ParserError:
-        raise HTTPException(status_code=500, detail=f"CSV file {file_path} is corrupted or improperly formatted.")
-   
-    missing_columns = set(REQUIRED_COLUMNS[file_type]) - set(df.columns)
-    if missing_columns:
-        raise HTTPException(status_code=500, detail=f"CSV file {file_path} is missing required columns: {missing_columns}.")
+        df = pd.read_csv(file_path, usecols=lambda col: col in REQUIRED_COLUMNS[file_type])
+    except (pd.errors.EmptyDataError, pd.errors.ParserError) as e:
+        raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}")
 
-    if df[REQUIRED_COLUMNS[file_type]].isnull().any().any():
-        raise HTTPException(status_code=500, detail=f"CSV file {file_path} contains missing values in required columns.")
+    if df.isnull().any().any():
+        raise HTTPException(status_code=500, detail="CSV contains missing values in required columns.")
 
     return df
 
-# API endpoint to retrieve product data
-@apps.get("/products")
+@app.get("/products")
 def get_products(filename: str = Query(None)):
-    file_path = get_file("products", filename)
-    df = read_csv_file(file_path, "products")
+    """API endpoint to retrieve product data."""
+    file_path = get_latest_file("products", filename)
+    df = read_csv(file_path, "products")
     return {"status": 200, "data": df.to_dict(orient="records")}
 
-# API endpoint to retrieve customers data
-@apps.get("/customers")
+@app.get("/customers")
 def get_customers(filename: str = Query(None)):
-    file_path = get_file("customers", filename)
-    df = read_csv_file(file_path, "customers")
+    """API endpoint to retrieve customer data."""
+    file_path = get_latest_file("customers", filename)
+    df = read_csv(file_path, "customers")
 
     # Remove 'loyalty_tier' column if it exists
-    df = df.drop(columns=["loyalty_tier"], errors="ignore")
-
+    df.drop(columns=["loyalty_tier"], errors="ignore", inplace=True)
+    
     return {"status": 200, "data": df.to_dict(orient="records")}
 
-# API endpoint to retrieve suppliers data
-@apps.get("/suppliers")
+@app.get("/suppliers")
 def get_suppliers(filename: str = Query(None)):
-    file_path = get_file("suppliers", filename)
-    df = read_csv_file(file_path, "suppliers")
+    """API endpoint to retrieve supplier data."""
+    file_path = get_latest_file("suppliers", filename)
+    df = read_csv(file_path, "suppliers")
     return {"status": 200, "data": df.to_dict(orient="records")}
