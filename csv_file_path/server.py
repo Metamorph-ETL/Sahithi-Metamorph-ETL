@@ -8,7 +8,7 @@ app = FastAPI()
 # Required columns for each file type
 REQUIRED_COLUMNS = {
     "products": ["product_id", "product_name", "category", "price", "stock_quantity", "reorder_level", "supplier_id"],
-    "customers": ["customer_id", "name", "city", "email", "phone_number", "loyalty_tier"],
+    "customers": ["customer_id", "name", "city", "email", "phone_number"],
     "suppliers": ["supplier_id", "supplier_name", "contact_details", "region"]
 }
 
