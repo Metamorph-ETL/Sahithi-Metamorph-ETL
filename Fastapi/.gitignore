@@ -1,3 +1,3 @@
-/keys
-/pip
-/__pycache__
+Fastapi/keys
+Fastapi/pip
+Fastapi/__pycache__
