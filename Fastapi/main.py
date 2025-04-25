@@ -54,7 +54,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@apps.get("/products")
+@apps.get("/v1/products")
 def get_products():
     file_path = get_latest_file("products")
     if not file_path:
@@ -71,7 +71,7 @@ def get_customers(current_user: User = Depends(get_current_active_user)):
     df.drop(columns=["loyalty_tier"], errors="ignore", inplace=True)
     return {"status": 200, "data": df.to_dict(orient="records")}
 
-@apps.get("/suppliers")
+@apps.get("/v1/suppliers")
 def get_suppliers():
     file_path = get_latest_file("suppliers")
     if not file_path:
