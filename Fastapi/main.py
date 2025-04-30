@@ -1,7 +1,8 @@
-import os
-import glob
-import pandas as pd
+import io
 from datetime import datetime, timedelta
+from google.cloud import storage
+from google.oauth2 import service_account
+import pandas as pd
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -13,33 +14,58 @@ from utils import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     fake_users_db
 )
+from dotenv import load_dotenv
+from os import environ as env
+load_dotenv()
+# Initialize FastAPI app
+app = FastAPI()
 
-apps = FastAPI()
-
-
+# Authentication models and utils
 class Token(BaseModel):
     access_token: str
     token_type: str
 
-base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..","rest-api", "SampleData"))
 
 
-def get_latest_file(file_type):
-    files = glob.glob(os.path.join(base_dir, f"{file_type}_*.csv"))
-    today = datetime.today().strftime("%Y%m%d")
-    latest_file = None
-    latest_date = "00000000"
+# GCS Configuration
+GCS_BUCKET_NAME = "meta-morph"
+GCS_CREDENTIALS_PATH = env["GCS_CREDENTIALS_PATH"]
 
-    for file in files:
-        filename = os.path.basename(file)
-        file_date = filename[-12:-4]
-        if file_date.isdigit() and len(file_date) == 8 and file_date <= today:
-            if file_date > latest_date:
-                latest_date, latest_file = file_date, file
+def get_gcs_client():
+    try:
+        credentials = service_account.Credentials.from_service_account_file(
+            GCS_CREDENTIALS_PATH
+        )
+        return storage.Client(credentials=credentials)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"GCS client error: {str(e)}")
 
-    return latest_file
+def get_latest_file_from_gcs(file_keyword: str):
+    try:
+    
+        client = get_gcs_client()
+        bucket = client.get_bucket(GCS_BUCKET_NAME)
+        #today_str = datetime.today().strftime("%Y%m%d")
+        today_str = "20250322"
+        blob_path = f"{today_str}/{file_keyword}_{today_str}.csv"
+        blob = bucket.blob(blob_path)
 
-@apps.post("/token", response_model=Token)
+        
+        if not blob.exists():
+            raise HTTPException(status_code=404,detail=f"File {blob_path} not found in GCS.")
+        return blob
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"GCS access error: {str(e)}")
+
+def read_csv_from_gcs(blob):
+    try:
+        content = blob.download_as_string()
+        return pd.read_csv(io.StringIO(content.decode('utf-8')))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"CSV read error: {str(e)}")
+
+# API Endpoints
+@app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user = authenticate_user(fake_users_db, form_data.username, form_data.password)
     if not user:
@@ -54,27 +80,21 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@apps.get("/products")
+@app.get("/v1/products")
 def get_products():
-    file_path = get_latest_file("products")
-    if not file_path:
-        raise HTTPException(status_code=404, detail="No valid products CSV file found.")
-    df = pd.read_csv(file_path)
+    blob = get_latest_file_from_gcs("product")
+    df = read_csv_from_gcs(blob)
     return {"status": 200, "data": df.to_dict(orient="records")}
 
-@apps.get("/v1/customers")
+@app.get("/v1/customers")
 def get_customers(current_user: User = Depends(get_current_active_user)):
-    file_path = get_latest_file("customers")
-    if not file_path:
-        raise HTTPException(status_code=404, detail="No valid customers CSV file found.")
-    df = pd.read_csv(file_path)
+    blob = get_latest_file_from_gcs("customer")
+    df = read_csv_from_gcs(blob)
     df.drop(columns=["loyalty_tier"], errors="ignore", inplace=True)
     return {"status": 200, "data": df.to_dict(orient="records")}
 
-@apps.get("/suppliers")
+@app.get("/v1/suppliers")
 def get_suppliers():
-    file_path = get_latest_file("suppliers")
-    if not file_path:
-        raise HTTPException(status_code=404, detail="No valid suppliers CSV file found.")
-    df = pd.read_csv(file_path)
+    blob = get_latest_file_from_gcs("supplier")
+    df = read_csv_from_gcs(blob)
     return {"status": 200, "data": df.to_dict(orient="records")}
