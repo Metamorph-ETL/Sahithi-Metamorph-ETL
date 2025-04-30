@@ -53,7 +53,7 @@ def authenticate_user(db, username: str, password: str):
 # Function to create a JWT access token with optional expiration time
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()  # Create a copy of the data to encode
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))  # Set expiration
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=30))  # Set expiration
     to_encode.update({"exp": expire})  # Add expiration time to payload
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)  # Encode and return token
 

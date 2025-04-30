@@ -1,4 +1,3 @@
-import os
 import io
 from datetime import datetime, timedelta
 from google.cloud import storage
@@ -31,7 +30,7 @@ class Token(BaseModel):
 # GCS Configuration
 GCS_BUCKET_NAME = "meta-morph"
 GCS_CREDENTIALS_PATH = env["GCS_CREDENTIALS_PATH"]
-print(GCS_CREDENTIALS_PATH)
+
 def get_gcs_client():
     try:
         credentials = service_account.Credentials.from_service_account_file(

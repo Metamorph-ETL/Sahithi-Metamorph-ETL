@@ -23,8 +23,6 @@ def load_population_data():
         response = requests.get(url, timeout=30)
         response.raise_for_status()
         json_data = response.json().get("data", [])
-        if not json_data:
-            raise ValueError("Empty API response")
         log.info(f"Extracted {len(json_data)} records")
         
         # Transformation: Convert JSON data to Spark DataFrame and rename columns
