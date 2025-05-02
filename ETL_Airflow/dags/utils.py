@@ -1,17 +1,11 @@
 from airflow.exceptions import AirflowException
 import requests
 from pyspark.sql import SparkSession
+import logging
 from pyspark.sql.functions import col
 from dags.secret_key import POSTGRES_PASSWORD
 
-# Column mapping: API field -> Database column
-column_mapping = {
-    "supplier_id": "supplier_id",
-    "supplier_name": "supplier_name",
-    "contact_details": "contact_details",
-    "region": "region"
-}
-
+log = logging.getLogger(__name__)
 # Initialize Spark session
 def init_spark():
     spark = SparkSession.builder \
@@ -20,41 +14,39 @@ def init_spark():
         .config("spark.master", "local[4]") \
         .getOrCreate()
     spark.sparkContext.setLogLevel("INFO")
+    log.info("Spark session initialized")
     return spark
 
-# Extract data from Suppliers API
-def extract_data(url):
-    response = requests.get(url)
-    response.raise_for_status()
-    return response.json().get("data", [])
+class APIClient:
+    def __init__(self, base_url):
+        self.base_url = base_url
 
-# Transform JSON to Spark DataFrame with schema + deduplication
+    def get_data(self, endpoint):
+        url = f"{self.base_url}/{endpoint}"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json().get("data", [])
+            if not data:
+                raise AirflowException(f"No data received from API: {url}")
+            return data
+        except requests.RequestException as e:
+            raise AirflowException(f"API request failed: {str(e)}")
+
+# Transform JSON to Spark DataFrame and check for duplicates
 def transform_data(spark, data, api_name="suppliers"):
-    if not data:
-        raise AirflowException(f"[{api_name}] No data received from API")
-
-    # Convert to DataFrame
     df = spark.createDataFrame(data)
 
-    # Apply column renaming
-    exprs = [f"`{old}` as {new}" for old, new in column_mapping.items()]
-    renamed_df = df.selectExpr(*exprs)
-
-    # Duplicate check
-    id_col = list(column_mapping.values())[0]  # use first mapped column as ID
-    count_before = renamed_df.count()
-    count_after = renamed_df.dropDuplicates([id_col]).count()
+    # Check for duplicates on 'supplier_id'
+    count_before = df.count()
+    df_dedup = df.dropDuplicates(["supplier_id"])
+    count_after = df_dedup.count()
 
     if count_before > count_after:
-        raise AirflowException(f"[{api_name}] Duplicate values found in '{id_col}'")
+        raise AirflowException(f"[{api_name}] Duplicate supplier_id values found.")
 
-    # Cast data types (if needed)
-    df_clean = renamed_df.select(
-        col("supplier_id"),
-        col("supplier_name"),
-        col("contact_details"),
-        col("region")
-    )
+    # Select required columns (if needed, adjust here)
+    df_clean = df_dedup.select("supplier_id", "supplier_name", "contact_details", "region")
 
     return df_clean
 
@@ -72,4 +64,5 @@ def load_to_postgres(df):
         mode="overwrite",
         properties=properties
     )
-
+    
+    log.info("Loaded data into PostgreSQL successfully")
