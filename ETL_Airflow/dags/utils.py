@@ -50,7 +50,7 @@ def transform_data(spark, data, api_name="suppliers"):
 
     # Cast data types (if needed)
     df_clean = renamed_df.select(
-        col("supplier_id").cast("int"),
+        col("supplier_id"),
         col("supplier_name"),
         col("contact_details"),
         col("region")
