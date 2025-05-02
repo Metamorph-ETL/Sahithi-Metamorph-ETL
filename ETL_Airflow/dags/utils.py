@@ -34,7 +34,7 @@ class APIClient:
             raise AirflowException(f"API request failed: {str(e)}")
 
 # Transform JSON to Spark DataFrame and check for duplicates
-def transform_data(spark, data, api_name="suppliers"):
+def transform_data(spark, data):
     df = spark.createDataFrame(data)
 
     # Check for duplicates on 'supplier_id'
@@ -43,15 +43,18 @@ def transform_data(spark, data, api_name="suppliers"):
     count_after = df_dedup.count()
 
     if count_before > count_after:
-        raise AirflowException(f"[{api_name}] Duplicate supplier_id values found.")
+        raise AirflowException(f" Duplicate supplier_id values found.")
 
     # Select required columns (if needed, adjust here)
     df_clean = df_dedup.select("supplier_id", "supplier_name", "contact_details", "region")
 
+    log.info("Trasnformed the data successfully")
+
     return df_clean
+    
 
 # Load DataFrame into PostgreSQL
-def load_to_postgres(df):
+def load_to_postgres(df,table_name):
     jdbc_url = "jdbc:postgresql://host.docker.internal:5432/data_usa"
     properties = {
         "user": "postgres",
@@ -60,7 +63,7 @@ def load_to_postgres(df):
     }
     df.write.jdbc(
         url=jdbc_url,
-        table="raw.supplier",
+        table=table_name,
         mode="overwrite",
         properties=properties
     )
