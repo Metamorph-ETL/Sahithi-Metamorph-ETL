@@ -6,19 +6,20 @@ from pyspark.sql.functions import col
 from dags.secret_key import POSTGRES_PASSWORD
 
 log = logging.getLogger(__name__)
+SparkMaster = "local[4]"
 # Initialize Spark session
 def init_spark():
     spark = SparkSession.builder \
         .appName("Suppliers_ETL") \
         .config("spark.jars", "/usr/local/airflow/jars/postgresql-42.7.1.jar") \
-        .config("spark.master", "local[4]") \
+        .config("spark.master",SparkMaster) \
         .getOrCreate()
     spark.sparkContext.setLogLevel("INFO")
     log.info("Spark session initialized")
     return spark
 
 class APIClient:
-    def __init__(self, base_url):
+    def __init__(self, base_url="http://host.docker.internal:8000"):
         self.base_url = base_url
 
     def get_data(self, endpoint):
@@ -55,7 +56,7 @@ def transform_data(spark, data):
 
 # Load DataFrame into PostgreSQL
 def load_to_postgres(df,table_name):
-    jdbc_url = "jdbc:postgresql://host.docker.internal:5432/data_usa"
+    jdbc_url = "jdbc:postgresql://host.docker.internal:5432/,meta_morph"
     properties = {
         "user": "postgres",
         "password": POSTGRES_PASSWORD,

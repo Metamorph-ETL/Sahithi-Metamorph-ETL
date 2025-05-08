@@ -3,7 +3,7 @@ from datetime import datetime
 from tasks.etl_suppliers import load_suppliers_data 
 
 @dag(
-    dag_id="etl_suppliers_dag",
+    dag_id="metamorph_etl_pipeline",
     schedule_interval='@daily',
     start_date=datetime(2024, 1, 1), 
     catchup=False,

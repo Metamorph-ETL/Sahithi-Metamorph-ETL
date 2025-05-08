@@ -3,7 +3,7 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from utils import init_spark,transform_data, load_to_postgres
 from utils import APIClient
-from secret_key import API_BASE_URL
+
 
 # Airflow task for Suppliers ETL
 @task
@@ -14,8 +14,8 @@ def load_suppliers_data():
         spark = init_spark()
 
         # Extract data from API (logging moved to extract_data function)
-        api_url = API_BASE_URL
-        api_client = APIClient(api_url)
+       
+        api_client = APIClient()
         # Extract data using the APIClient instance
         data = api_client.get_data("suppliers")
 
