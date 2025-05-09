@@ -2,61 +2,104 @@ from airflow.exceptions import AirflowException
 import requests
 from pyspark.sql import SparkSession
 import logging
-from pyspark.sql.functions import col
+from pyspark.sql.functions import count
 from dags.secret_key import POSTGRES_PASSWORD
 
 log = logging.getLogger(__name__)
-SparkMaster = "local[4]"
+
 # Initialize Spark session
 def init_spark():
     spark = SparkSession.builder \
         .appName("Suppliers_ETL") \
         .config("spark.jars", "/usr/local/airflow/jars/postgresql-42.7.1.jar") \
-        .config("spark.master",SparkMaster) \
+        .config("spark.master", "local[4]") \
         .getOrCreate()
     spark.sparkContext.setLogLevel("INFO")
     log.info("Spark session initialized")
     return spark
 
+
+
+
 class APIClient:
-    def __init__(self, base_url="http://host.docker.internal:8000"):
+    def __init__(self, base_url="http://host.docker.internal:8000/"):
         self.base_url = base_url
 
-    def get_data(self, endpoint):
-        url = f"{self.base_url}/{endpoint}"
+    def fetch_data(self, api_type: str, auth=False):
         try:
-            response = requests.get(url)
-            response.raise_for_status()
-            data = response.json().get("data", [])
-            if not data:
-                raise AirflowException(f"No data received from API: {url}")
-            return data
-        except requests.RequestException as e:
-            raise AirflowException(f"API request failed: {str(e)}")
+            headers = {}
 
-# Transform JSON to Spark DataFrame and check for duplicates
-def transform_data(spark, data):
-    df = spark.createDataFrame(data)
+            # If authentication is required, generate the token
+            if auth:
+                log.info("Generating token to authenticate API request...")
 
-    # Check for duplicates on 'supplier_id'
-    count_before = df.count()
-    df_dedup = df.dropDuplicates(["supplier_id"])
-    count_after = df_dedup.count()
+                # Generate token by sending a GET request to /token endpoint
+                # token_response = requests.get(f"{self.base_url}/token")
+                token_response = requests.post(
+                    f"{self.base_url}/token",
+                    data={'username': 'admin', 'password': 'adminpassword'}  # Add the correct data format
+                )
 
-    if count_before > count_after:
-        raise AirflowException(f" Duplicate supplier_id values found.")
+                if token_response.status_code != 200:
+                    raise Exception(f"Token generation failed: {token_response.text}")
 
-    # Select required columns (if needed, adjust here)
-    df_clean = df_dedup.select("supplier_id", "supplier_name", "contact_details", "region")
+                token_data = token_response.json()
+                token = token_data.get("access_token")
+                if not token:
+                    raise Exception("Token not found in response.")
+                
+                headers["Authorization"] = f"Bearer {token}"
+                log.info("Token generated successfully.")
 
-    log.info("Trasnformed the data successfully")
+            log.info(f"Fetching data from API endpoint: {self.base_url}/{api_type}")
+            # Make the GET request to the API
+            response = requests.get(f"{self.base_url}/{api_type}", headers=headers)
+            
+            # Check if the API call failed
+            if response.status_code == 404:
+                log.error(f"API call to {self.base_url}/{api_type} failed. Response: {response.text}")
+                raise Exception(f"API endpoint {api_type} not found.")
+            
+            # Check if the response was successful
+            if response.status_code == 200:
+                try:
+                    log.info(f"Successfully fetched data from {self.base_url}/{api_type}")
+                    return response.json()  # Return full JSON response
+                except Exception as e:
+                    raise Exception(f"Failed to parse JSON: {str(e)}")
+            else:
+                raise Exception(f"Request failed. Status: {response.status_code}, Response: {response.text}")
 
-    return df_clean
-    
+        except requests.exceptions.RequestException as e:
+            log.error(f"API request failed: {str(e)}")
+            raise Exception(f"API request failed: {str(e)}")
+
+        except Exception as e:
+            log.error(f"An error occurred: {str(e)}")
+            raise Exception(f"An error occurred: {str(e)}")
+
+
+
+# Custom exception
+class DuplicateException(Exception):
+    """Exception raised when duplicate data is detected."""
+    pass
+
+# Duplicate check class
+class DuplicateValidator:
+    """Performs validation checks to ensure uniqueness in data."""
+
+    @classmethod
+    def validate_no_duplicates(cls, dataframe, key_columns):
+        logging.info("Running duplicate validation on input DataFrame.")
+        duplicates = dataframe.groupBy(key_columns).agg(count("*").alias("duplicate_count"))
+        if duplicates.filter(duplicates["duplicate_count"] > 1).count() > 0:
+            raise DuplicateException("Duplicate records detected.")
+        logging.info("No duplicates found. Validation passed.")
 
 # Load DataFrame into PostgreSQL
-def load_to_postgres(df,table_name):
-    jdbc_url = "jdbc:postgresql://host.docker.internal:5432/,meta_morph"
+def load_to_postgres(df, table_name):
+    jdbc_url = "jdbc:postgresql://host.docker.internal:5432/meta_morph"
     properties = {
         "user": "postgres",
         "password": POSTGRES_PASSWORD,
@@ -65,8 +108,7 @@ def load_to_postgres(df,table_name):
     df.write.jdbc(
         url=jdbc_url,
         table=table_name,
-        mode="overwrite",
+        mode="overwrite", 
         properties=properties
     )
-    
     log.info("Loaded data into PostgreSQL successfully")
