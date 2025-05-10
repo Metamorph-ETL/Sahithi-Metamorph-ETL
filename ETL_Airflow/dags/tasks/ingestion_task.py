@@ -7,8 +7,6 @@ log = logging.getLogger(__name__)
 
 @task
 def m_ingest_data_into_suppliers():
-    
-    
     try:
         # Start Spark session
         log.info("Initializing Spark session...")
@@ -26,18 +24,24 @@ def m_ingest_data_into_suppliers():
         
         log.info(f"Received {len(data)} supplier records.")
         
-        # Create Spark DataFrame and clean data
+        # Create Spark DataFrame from API data
         df = spark.createDataFrame(data)
-        df_clean = df.select("SUPPLIER_ID", "SUPPLIER_NAME", "CONTACT_DETAILS", "REGION")
-        
-        
-        # Remove duplicates based on SUPPLIER_ID
-        df_clean = df_clean.dropDuplicates(["SUPPLIER_ID"])
-        DuplicateValidator.validate_no_duplicates(df_clean, key_columns=["SUPPLIER_ID"])
+
+        # Rename columns to uppercase
+        suppliers_df = (
+            df.withColumnRenamed("supplier_id", "SUPPLIER_ID")
+              .withColumnRenamed("supplier_name", "SUPPLIER_NAME")
+              .withColumnRenamed("contact_details", "CONTACT_DETAILS")
+              .withColumnRenamed("region", "REGION")
+              .select("SUPPLIER_ID", "SUPPLIER_NAME", "CONTACT_DETAILS", "REGION")
+        )
+
+        # Validate no duplicates based on SUPPLIER_ID
+        DuplicateValidator.validate_no_duplicates(suppliers_df, key_columns=["SUPPLIER_ID"])
 
         # Load the cleaned data to PostgreSQL
         log.info("Loading data into PostgreSQL...")
-        load_to_postgres(df_clean, "raw.suppliers")
+        load_to_postgres(suppliers_df, "raw.suppliers")
         
         log.info("Suppliers ETL process completed successfully.")
         return "Suppliers ETL process completed successfully."
@@ -47,12 +51,9 @@ def m_ingest_data_into_suppliers():
         raise AirflowException(f"Suppliers ETL failed: {str(e)}")
 
     finally:
-        # Ensure Spark session is stopped if it was started
-       
             spark.stop()
-            log.info("Spark session stopped.")
-
-
+            log.info("Spark session for suppliers completed.")
+       
 @task
 def m_ingest_data_into_products():
     try:
@@ -60,43 +61,38 @@ def m_ingest_data_into_products():
         log.info("Initializing Spark session for products...")
         spark = init_spark()
 
-        # API Client to fetch data
+        # Fetch product data
         log.info("Fetching product data from API...")
         client = APIClient()
         response = client.fetch_data("v1/products")
 
-        # Validate data presence
+        # Validate response
         data = response.get("data")
         if not data:
             raise AirflowException("No product data received or missing 'data' key in response.")
 
         log.info(f"Received {len(data)} product records.")
 
-        # Create Spark DataFrame and clean data
+        # Create DataFrame and rename columns
         df = spark.createDataFrame(data)
-        
-        # Replace these columns with actual column names returned by your API
-        for col_name in df.columns:
-               df = df.withColumnRenamed(col_name, col_name.upper())
+        products_df = (
+            df.withColumnRenamed("product_id", "PRODUCT_ID")
+              .withColumnRenamed("product_name", "PRODUCT_NAME")
+              .withColumnRenamed("category", "CATEGORY")
+              .withColumnRenamed("price", "PRICE")
+              .withColumnRenamed("stock_quantity", "STOCK_QUANTITY")
+              .withColumnRenamed("reorder_level", "REORDER_LEVEL")
+              .withColumnRenamed("supplier_id", "SUPPLIER_ID")
+              .select("PRODUCT_ID", "PRODUCT_NAME", "CATEGORY", "PRICE", "STOCK_QUANTITY", "REORDER_LEVEL", "SUPPLIER_ID")
+        )
 
-# Now select with uppercase names
-        df_clean = df.select(
-               "product_id",
-               "product_name",
-               "category",
-               "price",
-               "stock_quantity",
-               "reorder_level",  
-               "supplier_id"
-)
-        
-        # Remove duplicates
-        df_clean = df_clean.dropDuplicates(["PRODUCT_ID"])
-        DuplicateValidator.validate_no_duplicates(df_clean, key_columns=["PRODUCT_ID"])
+        # Remove and validate duplicates
+        products_df = products_df.dropDuplicates(["PRODUCT_ID"])
+        DuplicateValidator.validate_no_duplicates(products_df, key_columns=["PRODUCT_ID"])
 
-        # Load to PostgreSQL
+        # Load data
         log.info("Loading products data into PostgreSQL...")
-        load_to_postgres(df_clean, "raw.products")
+        load_to_postgres(products_df, "raw.products")
 
         log.info("Products ETL process completed successfully.")
         return "Products ETL process completed successfully."
@@ -107,7 +103,8 @@ def m_ingest_data_into_products():
 
     finally:
         spark.stop()
-        log.info("Spark session for products stopped.")
+        log.info("Spark session for products completed.")
+
 
 @task
 def m_ingest_data_into_customers():
@@ -116,39 +113,35 @@ def m_ingest_data_into_customers():
         log.info("Initializing Spark session for customers...")
         spark = init_spark()
 
-        # Instantiate APIClient with the base URL
-        client = APIClient()  # Replace with your base URL
-        
-        # Fetch customer data from API (using authentication)
+        # Fetch customer data
+        client = APIClient()
         log.info("Fetching customer data from API...")
         response = client.fetch_data("v1/customers", auth=True)
-        
-        # Check if data is received
+
         data = response.get("data")
         if not data:
             raise AirflowException("No customer data received or missing 'data' key in response.")
-        
+
         log.info(f"Received {len(data)} customer records.")
 
-        # Create Spark DataFrame and clean data
+        # Create DataFrame and rename columns
         df = spark.createDataFrame(data)
-        
-        # Ensure all columns are uppercase
-        for col_name in df.columns:
-            df = df.withColumnRenamed(col_name, col_name.upper())
-        
-        # Select relevant columns
-        df_clean = df.select("CUSTOMER_ID", "NAME", "CITY", "EMAIL", "PHONE_NUMBER")
-        
-        # Remove duplicates based on CUSTOMER_ID
-        df_clean = df_clean.dropDuplicates(["CUSTOMER_ID"])
-        
-        # Validate that there are no duplicates (you can define your own validation rules)
-        DuplicateValidator.validate_no_duplicates(df_clean, key_columns=["CUSTOMER_ID"])
+        customers_df = (
+            df.withColumnRenamed("customer_id", "CUSTOMER_ID")
+              .withColumnRenamed("name", "NAME")
+              .withColumnRenamed("city", "CITY")
+              .withColumnRenamed("email", "EMAIL")
+              .withColumnRenamed("phone_number", "PHONE_NUMBER")
+              .select("CUSTOMER_ID", "NAME", "CITY", "EMAIL", "PHONE_NUMBER")
+        )
 
-        # Load the cleaned data into PostgreSQL
+        # Remove and validate duplicates
+        customers_df = customers_df.dropDuplicates(["CUSTOMER_ID"])
+        DuplicateValidator.validate_no_duplicates(customers_df, key_columns=["CUSTOMER_ID"])
+
+        # Load data
         log.info("Loading customer data into PostgreSQL...")
-        load_to_postgres(df_clean, "raw.customers")
+        load_to_postgres(customers_df, "raw.customers")
 
         log.info("Customers ETL process completed successfully.")
         return "Customers ETL process completed successfully."
@@ -158,6 +151,5 @@ def m_ingest_data_into_customers():
         raise AirflowException(f"Customers ETL failed: {str(e)}")
 
     finally:
-        # Ensure Spark session is stopped
         spark.stop()
-        log.info("Spark session for customers stopped.")
+        log.info("Spark session for customers completed.")

@@ -1,18 +1,21 @@
-from airflow.exceptions import AirflowException
 import requests
 from pyspark.sql import SparkSession
 import logging
 from pyspark.sql.functions import count
-from dags.secret_key import POSTGRES_PASSWORD
+from dags.secret_key import POSTGRES_PASSWORD,USERNAME,PASSWORD 
+
+
 
 log = logging.getLogger(__name__)
+
+SparkMaster = "local[4]"
 
 # Initialize Spark session
 def init_spark():
     spark = SparkSession.builder \
         .appName("Suppliers_ETL") \
         .config("spark.jars", "/usr/local/airflow/jars/postgresql-42.7.1.jar") \
-        .config("spark.master", "local[4]") \
+        .config("spark.master", SparkMaster) \
         .getOrCreate()
     spark.sparkContext.setLogLevel("INFO")
     log.info("Spark session initialized")
@@ -37,7 +40,7 @@ class APIClient:
                 # token_response = requests.get(f"{self.base_url}/token")
                 token_response = requests.post(
                     f"{self.base_url}/token",
-                    data={'username': 'admin', 'password': 'adminpassword'}  # Add the correct data format
+                    data={'username': USERNAME, 'password': PASSWORD }  # Add the correct data format
                 )
 
                 if token_response.status_code != 200:
@@ -82,8 +85,9 @@ class APIClient:
 
 # Custom exception
 class DuplicateException(Exception):
-    """Exception raised when duplicate data is detected."""
-    pass
+     def __init__(self, message="Duplicate data detected during validation."):
+        # Call the base class constructor with the message
+        super().__init__(message)
 
 # Duplicate check class
 class DuplicateValidator:
@@ -94,7 +98,7 @@ class DuplicateValidator:
         logging.info("Running duplicate validation on input DataFrame.")
         duplicates = dataframe.groupBy(key_columns).agg(count("*").alias("duplicate_count"))
         if duplicates.filter(duplicates["duplicate_count"] > 1).count() > 0:
-            raise DuplicateException("Duplicate records detected.")
+            raise DuplicateException
         logging.info("No duplicates found. Validation passed.")
 
 # Load DataFrame into PostgreSQL
