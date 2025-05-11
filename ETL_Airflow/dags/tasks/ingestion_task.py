@@ -148,7 +148,7 @@ def m_ingest_data_into_customers():
               .withColumnRenamed("city", "CITY")
               .withColumnRenamed("email", "EMAIL")
               .withColumnRenamed("phone_number", "PHONE_NUMBER")
-              .select("CUSTOMER_ID", "NAME", "CITY", "EMAIL", "PHONE_NUMBER")
+             
         )
 
         customers_df_tgt=customers_df.select(
