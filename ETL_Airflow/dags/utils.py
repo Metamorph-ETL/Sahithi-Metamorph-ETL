@@ -8,14 +8,13 @@ from dags.secret_key import POSTGRES_PASSWORD,USERNAME,PASSWORD
 
 log = logging.getLogger(__name__)
 
-SparkMaster = "local[4]"
+
 
 # Initialize Spark session
 def init_spark():
     spark = SparkSession.builder \
         .appName("Suppliers_ETL") \
         .config("spark.jars", "/usr/local/airflow/jars/postgresql-42.7.1.jar") \
-        .config("spark.master", SparkMaster) \
         .getOrCreate()
     spark.sparkContext.setLogLevel("INFO")
     log.info("Spark session initialized")

@@ -2,6 +2,7 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator
 import logging
+from pyspark.sql.functions import col
 
 log = logging.getLogger(__name__)
 
@@ -33,15 +34,21 @@ def m_ingest_data_into_suppliers():
               .withColumnRenamed("supplier_name", "SUPPLIER_NAME")
               .withColumnRenamed("contact_details", "CONTACT_DETAILS")
               .withColumnRenamed("region", "REGION")
-              .select("SUPPLIER_ID", "SUPPLIER_NAME", "CONTACT_DETAILS", "REGION")
+              
+        )
+        suppliers_df_tgt =suppliers_df.select(
+            col("SUPPLIER_ID"),
+            col("SUPPLIER_NAME"),
+            col("CONTACT_DETAILS"),
+            col("REGION")
         )
 
         # Validate no duplicates based on SUPPLIER_ID
-        DuplicateValidator.validate_no_duplicates(suppliers_df, key_columns=["SUPPLIER_ID"])
+        DuplicateValidator.validate_no_duplicates(suppliers_df_tgt, key_columns=["SUPPLIER_ID"])
 
         # Load the cleaned data to PostgreSQL
         log.info("Loading data into PostgreSQL...")
-        load_to_postgres(suppliers_df, "raw.suppliers")
+        load_to_postgres(suppliers_df_tgt, "raw.suppliers")
         
         log.info("Suppliers ETL process completed successfully.")
         return "Suppliers ETL process completed successfully."
@@ -83,16 +90,25 @@ def m_ingest_data_into_products():
               .withColumnRenamed("stock_quantity", "STOCK_QUANTITY")
               .withColumnRenamed("reorder_level", "REORDER_LEVEL")
               .withColumnRenamed("supplier_id", "SUPPLIER_ID")
-              .select("PRODUCT_ID", "PRODUCT_NAME", "CATEGORY", "PRICE", "STOCK_QUANTITY", "REORDER_LEVEL", "SUPPLIER_ID")
+              
         )
 
-        # Remove and validate duplicates
-        products_df = products_df.dropDuplicates(["PRODUCT_ID"])
-        DuplicateValidator.validate_no_duplicates(products_df, key_columns=["PRODUCT_ID"])
+        products_df_tgt =products_df.select(
+            col("PRODUCT_ID"), 
+            col("PRODUCT_NAME"),
+            col( "CATEGORY"),
+            col( "PRICE"),
+            col("STOCK_QUANTITY"),
+            col( "REORDER_LEVEL"),
+            col( "SUPPLIER_ID")
+        )
+
+        # Validate no duplicates based on PRODUCTS_ID
+        DuplicateValidator.validate_no_duplicates(products_df_tgt, key_columns=["PRODUCT_ID"])
 
         # Load data
         log.info("Loading products data into PostgreSQL...")
-        load_to_postgres(products_df, "raw.products")
+        load_to_postgres(products_df_tgt, "raw.products")
 
         log.info("Products ETL process completed successfully.")
         return "Products ETL process completed successfully."
@@ -135,13 +151,20 @@ def m_ingest_data_into_customers():
               .select("CUSTOMER_ID", "NAME", "CITY", "EMAIL", "PHONE_NUMBER")
         )
 
-        # Remove and validate duplicates
-        customers_df = customers_df.dropDuplicates(["CUSTOMER_ID"])
-        DuplicateValidator.validate_no_duplicates(customers_df, key_columns=["CUSTOMER_ID"])
+        customers_df_tgt=customers_df.select(
+            col("CUSTOMER_ID"),
+            col("NAME"),
+            col("CITY"),
+            col("EMAIL"),
+            col("PHONE_NUMBER")
+        )
+
+        # Validate no duplicates based on CUSTOMERS_ID
+        DuplicateValidator.validate_no_duplicates(customers_df_tgt, key_columns=["CUSTOMER_ID"])
 
         # Load data
         log.info("Loading customer data into PostgreSQL...")
-        load_to_postgres(customers_df, "raw.customers")
+        load_to_postgres(customers_df_tgt, "raw.customers")
 
         log.info("Customers ETL process completed successfully.")
         return "Customers ETL process completed successfully."
