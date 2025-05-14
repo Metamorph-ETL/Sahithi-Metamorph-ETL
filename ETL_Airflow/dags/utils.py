@@ -12,11 +12,13 @@ log = logging.getLogger(__name__)
 
 # Initialize Spark session
 def init_spark():
-    spark = SparkSession.builder \
-        .appName("Suppliers_ETL") \
-        .config("spark.jars", "/usr/local/airflow/jars/postgresql-42.7.1.jar") \
+    spark = SparkSession.builder.appName("GCS_to_Postgres") \
+        .config("spark.jars", "/usr/local/airflow/jars/postgresql-42.7.1.jar,/usr/local/airflow/jars/gcs-connector-hadoop3-latest.jar") \
+        .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem") \
+        .config("spark.hadoop.fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS") \
         .getOrCreate()
-    spark.sparkContext.setLogLevel("INFO")
+    spark._jsc.hadoopConfiguration().set("google.cloud.auth.service.account.json.keyfile", "/usr/local/airflow/jars/meta-morph-d-eng-pro-view-key.json")
+    logging.info("Spark session Created")
     log.info("Spark session initialized")
     return spark
 
@@ -24,7 +26,7 @@ def init_spark():
 
 
 class APIClient:
-    def __init__(self, base_url="http://host.docker.internal:8000/"):
+    def __init__(self, base_url="http://host.docker.internal:8000"):
         self.base_url = base_url
 
     def fetch_data(self, api_type: str, auth=False):

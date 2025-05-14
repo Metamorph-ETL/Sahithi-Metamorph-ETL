@@ -29,13 +29,13 @@ def m_ingest_data_into_suppliers():
         df = spark.createDataFrame(data)
 
         # Rename columns to uppercase
-        suppliers_df = (
-            df.withColumnRenamed("supplier_id", "SUPPLIER_ID")
-              .withColumnRenamed("supplier_name", "SUPPLIER_NAME")
-              .withColumnRenamed("contact_details", "CONTACT_DETAILS")
+        suppliers_df = df\
+            .withColumnRenamed("supplier_id", "SUPPLIER_ID")\
+              .withColumnRenamed("supplier_name", "SUPPLIER_NAME")\
+              .withColumnRenamed("contact_details", "CONTACT_DETAILS")\
               .withColumnRenamed("region", "REGION")
               
-        )
+        
         suppliers_df_tgt =suppliers_df.select(
             col("SUPPLIER_ID"),
             col("SUPPLIER_NAME"),
@@ -82,16 +82,16 @@ def m_ingest_data_into_products():
 
         # Create DataFrame and rename columns
         df = spark.createDataFrame(data)
-        products_df = (
-            df.withColumnRenamed("product_id", "PRODUCT_ID")
-              .withColumnRenamed("product_name", "PRODUCT_NAME")
-              .withColumnRenamed("category", "CATEGORY")
-              .withColumnRenamed("price", "PRICE")
-              .withColumnRenamed("stock_quantity", "STOCK_QUANTITY")
-              .withColumnRenamed("reorder_level", "REORDER_LEVEL")
-              .withColumnRenamed("supplier_id", "SUPPLIER_ID")
+        products_df = df\
+             .withColumnRenamed("product_id", "PRODUCT_ID")\
+              .withColumnRenamed("product_name", "PRODUCT_NAME")\
+              .withColumnRenamed("category", "CATEGORY")\
+              .withColumnRenamed("price", "PRICE")\
+              .withColumnRenamed("stock_quantity", "STOCK_QUANTITY")\
+              .withColumnRenamed("reorder_level", "REORDER_LEVEL")\
+              .withColumnRenamed("supplier_id", "SUPPLIER_ID")\
               
-        )
+        
 
         products_df_tgt =products_df.select(
             col("PRODUCT_ID"), 
@@ -142,14 +142,14 @@ def m_ingest_data_into_customers():
 
         # Create DataFrame and rename columns
         df = spark.createDataFrame(data)
-        customers_df = (
-            df.withColumnRenamed("customer_id", "CUSTOMER_ID")
-              .withColumnRenamed("name", "NAME")
-              .withColumnRenamed("city", "CITY")
-              .withColumnRenamed("email", "EMAIL")
+        customers_df =df\
+             .withColumnRenamed("customer_id", "CUSTOMER_ID")\
+              .withColumnRenamed("name", "NAME")\
+              .withColumnRenamed("city", "CITY")\
+              .withColumnRenamed("email", "EMAIL")\
               .withColumnRenamed("phone_number", "PHONE_NUMBER")
              
-        )
+        
 
         customers_df_tgt=customers_df.select(
             col("CUSTOMER_ID"),
@@ -176,3 +176,75 @@ def m_ingest_data_into_customers():
     finally:
         spark.stop()
         log.info("Spark session for customers completed.")
+
+
+
+
+@task
+def m_ingest_data_into_Sales():
+    try:
+        # Start Spark session
+        log.info("Initializing Spark session...")
+        spark = init_spark()
+
+        # API Client to fetch data
+        log.info("Fetching sales data from API...")            
+        today_date = "20250322"
+        
+        # Create Spark DataFrame from API data
+        csv_file_path = f"gs://meta-morph/{today_date}/sales_{today_date}.csv" 
+
+        sales_df = spark.read.csv(
+            csv_file_path,
+            header=True,
+            sep=",",
+            inferSchema=True
+        )
+
+        # Display the DataFrame
+        sales_df.show()
+
+
+        # Rename columns to uppercase
+        sales_df = sales_df \
+                    .withColumnRenamed("sale_id", "SALE_ID")\
+                    .withColumnRenamed("customer_id", "CUSTOMER_ID")\
+                    .withColumnRenamed("product_id", "PRODUCT_ID")\
+                    .withColumnRenamed("sale_date", "SALE_DATE")\
+                    .withColumnRenamed("quantity", "QUANTITY")\
+                    .withColumnRenamed("discount", "DISCOUNT")\
+                    .withColumnRenamed("shipping_cost", "SHIPPING_COST")\
+                    .withColumnRenamed("order_status", "ORDER_STATUS")\
+                    .withColumnRenamed("payment_mode", "PAYMENT_MODE")\
+                    
+              
+         
+        sales_df_tgt =sales_df.select(
+            col("SALE_ID"),
+            col("CUSTOMER_ID"),
+            col("PRODUCT_ID"),
+            col("SALE_DATE"),
+            col("QUANTITY"),
+            col("DISCOUNT"),
+            col("SHIPPING_COST"),
+            col("ORDER_STATUS"),
+            col("PAYMENT_MODE")
+        )
+
+        # Validate no duplicates based on SUPPLIER_ID
+        DuplicateValidator.validate_no_duplicates(sales_df_tgt, key_columns=["SALE_ID"])
+
+        # Load the cleaned data to PostgreSQL
+        log.info("Loading data into PostgreSQL...")
+        load_to_postgres(sales_df_tgt, "raw.sales")
+        
+        log.info("Sales ETL process completed successfully.")
+        return "Sales ETL process completed successfully."
+
+    except Exception as e:
+        log.error("Sales ETL failed: %s", str(e))
+        raise AirflowException(f"Sales ETL failed: {str(e)}")
+
+    finally:
+            spark.stop()
+            log.info("Spark session for sales completed.")
