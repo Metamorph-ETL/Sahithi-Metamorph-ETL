@@ -201,10 +201,6 @@ def m_ingest_data_into_Sales():
             inferSchema=True
         )
 
-        # Display the DataFrame
-        sales_df.show()
-
-
         # Rename columns to uppercase
         sales_df = sales_df \
                     .withColumnRenamed("sale_id", "SALE_ID")\
