@@ -47,8 +47,7 @@ def m_ingest_data_into_suppliers():
         validator.validate_no_duplicates(df, key_columns=["SUPPLIER_ID"])
 
 
-        # Load the cleaned data to PostgreSQL
-        log.info("Loading data into PostgreSQL...")
+        # Load the cleaned data to PostgreSQL        
         load_to_postgres(suppliers_df_tgt, "raw.suppliers")
         
         log.info("Suppliers ETL process completed successfully.")
@@ -107,8 +106,7 @@ def m_ingest_data_into_products():
         validator = DuplicateValidator()
         validator.validate_no_duplicates(df, key_columns=["PRODUCT_ID"])
 
-        # Load data
-        log.info("Loading products data into PostgreSQL...")
+        # Load data       
         load_to_postgres(products_df_tgt, "raw.products")
 
         log.info("Products ETL process completed successfully.")
@@ -163,7 +161,6 @@ def m_ingest_data_into_customers():
         validator = DuplicateValidator()
         validator.validate_no_duplicates(df, key_columns=["CUSTOMER_ID"])
         # Load data
-        log.info("Loading customer data into PostgreSQL...")
         load_to_postgres(customers_df_tgt, "raw.customers")
 
         log.info("Customers ETL process completed successfully.")
@@ -229,10 +226,9 @@ def m_ingest_data_into_sales():
 
         # Validate no duplicates based on SUPPLIER_ID
         validator = DuplicateValidator()
-        validator.validate_no_duplicates(df, key_columns=["SALE_ID"])
+        validator.validate_no_duplicates(sales_df_tgt, key_columns=["SALE_ID"])
 
         # Load the cleaned data to PostgreSQL
-        log.info("Loading data into PostgreSQL...")
         load_to_postgres(sales_df_tgt, "raw.sales")
         
         log.info("Sales ETL process completed successfully.")

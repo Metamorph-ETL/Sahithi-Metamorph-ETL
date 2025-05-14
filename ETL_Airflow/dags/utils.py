@@ -116,4 +116,5 @@ def load_to_postgres(df, table_name):
         mode="overwrite", 
         properties=properties
     )
+    log.info("Connecting to jbbc for loading to postgress table") 
     log.info("Loaded data into PostgreSQL successfully")
