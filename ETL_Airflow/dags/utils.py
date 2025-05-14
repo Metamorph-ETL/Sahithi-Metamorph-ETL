@@ -12,6 +12,7 @@ log = logging.getLogger(__name__)
 
 # Initialize Spark session
 def init_spark():
+    log.info("Initializing Spark session...")
     spark = SparkSession.builder.appName("GCS_to_Postgres") \
         .config("spark.jars", "/usr/local/airflow/jars/postgresql-42.7.1.jar,/usr/local/airflow/jars/gcs-connector-hadoop3-latest.jar") \
         .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem") \
@@ -19,7 +20,6 @@ def init_spark():
         .getOrCreate()
     spark._jsc.hadoopConfiguration().set("google.cloud.auth.service.account.json.keyfile", "/usr/local/airflow/jars/meta-morph-d-eng-pro-view-key.json")
     logging.info("Spark session Created")
-    log.info("Spark session initialized")
     return spark
 
 
