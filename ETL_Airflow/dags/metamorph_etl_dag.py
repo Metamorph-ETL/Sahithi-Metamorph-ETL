@@ -1,6 +1,6 @@
 from airflow.decorators import dag
 from datetime import datetime
-from tasks.ingestion_task import m_ingest_data_into_suppliers, m_ingest_data_into_products, m_ingest_data_into_customers
+from tasks.ingestion_task import m_ingest_data_into_suppliers, m_ingest_data_into_products, m_ingest_data_into_customers,m_ingest_data_into_sales
 
 @dag(
     dag_id="ingestion_data_pipeline",
@@ -9,10 +9,13 @@ from tasks.ingestion_task import m_ingest_data_into_suppliers, m_ingest_data_int
     catchup=False,
 )
 def etl_process():
-   m_ingest_data_into_suppliers()
-   m_ingest_data_into_products()
-   m_ingest_data_into_customers()
+    supplier_task = m_ingest_data_into_suppliers()
+    product_task = m_ingest_data_into_products()
+    customer_task = m_ingest_data_into_customers()
+    sales_task = m_ingest_data_into_sales()
 
+    # Set dependencies inside the DAG function
+    supplier_task >> product_task >> customer_task >> sales_task
   
 
 dag_instance = etl_process()
