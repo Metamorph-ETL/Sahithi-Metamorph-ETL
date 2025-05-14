@@ -29,18 +29,19 @@ def m_ingest_data_into_suppliers():
 
         # Rename columns to uppercase
         suppliers_df = df\
-                    .withColumnRenamed("supplier_id", "SUPPLIER_ID")\
-                    .withColumnRenamed("supplier_name", "SUPPLIER_NAME")\
-                    .withColumnRenamed("contact_details", "CONTACT_DETAILS")\
-                    .withColumnRenamed("region", "REGION")
+                        .withColumnRenamed("supplier_id", "SUPPLIER_ID")\
+                        .withColumnRenamed("supplier_name", "SUPPLIER_NAME")\
+                        .withColumnRenamed("contact_details", "CONTACT_DETAILS")\
+                        .withColumnRenamed("region", "REGION")
               
         
-        suppliers_df_tgt =suppliers_df.select(
-                            col("SUPPLIER_ID"),
-                            col("SUPPLIER_NAME"),
-                            col("CONTACT_DETAILS"),
-                            col("REGION")
-                        )
+        suppliers_df_tgt =suppliers_df\
+                            .select(
+                                col("SUPPLIER_ID"),
+                                col("SUPPLIER_NAME"),
+                                col("CONTACT_DETAILS"),
+                                col("REGION")
+                            )           
 
         # Validate no duplicates based on SUPPLIER_ID        
         validator = DuplicateValidator()
@@ -82,25 +83,26 @@ def m_ingest_data_into_products():
         # Create DataFrame and rename columns
         df = spark.createDataFrame(data)
         products_df = df\
-                    .withColumnRenamed("product_id", "PRODUCT_ID")\
-                    .withColumnRenamed("product_name", "PRODUCT_NAME")\
-                    .withColumnRenamed("category", "CATEGORY")\
-                    .withColumnRenamed("price", "PRICE")\
-                    .withColumnRenamed("stock_quantity", "STOCK_QUANTITY")\
-                    .withColumnRenamed("reorder_level", "REORDER_LEVEL")\
-                    .withColumnRenamed("supplier_id", "SUPPLIER_ID")
-              
+                        .withColumnRenamed("product_id", "PRODUCT_ID")\
+                        .withColumnRenamed("product_name", "PRODUCT_NAME")\
+                        .withColumnRenamed("category", "CATEGORY")\
+                        .withColumnRenamed("price", "PRICE")\
+                        .withColumnRenamed("stock_quantity", "STOCK_QUANTITY")\
+                        .withColumnRenamed("reorder_level", "REORDER_LEVEL")\
+                        .withColumnRenamed("supplier_id", "SUPPLIER_ID")
+                
         
 
-        products_df_tgt =products_df.select(                       
-                        col("PRODUCT_ID"), 
-                        col("PRODUCT_NAME"),
-                        col( "CATEGORY"),
-                        col( "PRICE"),
-                        col("STOCK_QUANTITY"),
-                        col( "REORDER_LEVEL"),
-                        col( "SUPPLIER_ID")
-                    )
+        products_df_tgt =products_df\
+                            .select(                       
+                                col("PRODUCT_ID"), 
+                                col("PRODUCT_NAME"),
+                                col( "CATEGORY"),
+                                col( "PRICE"),
+                                col("STOCK_QUANTITY"),
+                                col( "REORDER_LEVEL"),
+                                col( "SUPPLIER_ID")
+                            )
 
         # Validate no duplicates based on PRODUCTS_ID
         validator = DuplicateValidator()
@@ -141,21 +143,22 @@ def m_ingest_data_into_customers():
         # Create DataFrame and rename columns
         df = spark.createDataFrame(data)
         customers_df =df\
-                    .withColumnRenamed("customer_id", "CUSTOMER_ID")\
-                    .withColumnRenamed("name", "NAME")\
-                    .withColumnRenamed("city", "CITY")\
-                    .withColumnRenamed("email", "EMAIL")\
-                    .withColumnRenamed("phone_number", "PHONE_NUMBER")
+                        .withColumnRenamed("customer_id", "CUSTOMER_ID")\
+                        .withColumnRenamed("name", "NAME")\
+                        .withColumnRenamed("city", "CITY")\
+                        .withColumnRenamed("email", "EMAIL")\
+                        .withColumnRenamed("phone_number", "PHONE_NUMBER")
                 
         
 
-        customers_df_tgt=customers_df.select(
-                        col("CUSTOMER_ID"),
-                        col("NAME"),
-                        col("CITY"),
-                        col("EMAIL"),
-                        col("PHONE_NUMBER")
-                    )
+        customers_df_tgt=customers_df\
+                            .select(
+                                col("CUSTOMER_ID"),
+                                col("NAME"),
+                                col("CITY"),
+                                col("EMAIL"),
+                                col("PHONE_NUMBER")
+                            )
 
         # Validate no duplicates based on CUSTOMERS_ID
         validator = DuplicateValidator()
@@ -191,7 +194,7 @@ def m_ingest_data_into_sales():
         # Create Spark DataFrame from API data
         csv_file_path = f"gs://meta-morph/{today_date}/sales_{today_date}.csv" 
 
-        sales_df = spark.read.csv(
+        df = spark.read.csv(
             csv_file_path,
             header=True,
             sep=",",
@@ -199,30 +202,31 @@ def m_ingest_data_into_sales():
         )
 
         # Rename columns to uppercase
-        sales_df = sales_df \
-                .withColumnRenamed("sale_id", "SALE_ID")\
-                .withColumnRenamed("customer_id", "CUSTOMER_ID")\
-                .withColumnRenamed("product_id", "PRODUCT_ID")\
-                .withColumnRenamed("sale_date", "SALE_DATE")\
-                .withColumnRenamed("quantity", "QUANTITY")\
-                .withColumnRenamed("discount", "DISCOUNT")\
-                .withColumnRenamed("shipping_cost", "SHIPPING_COST")\
-                .withColumnRenamed("order_status", "ORDER_STATUS")\
-                .withColumnRenamed("payment_mode", "PAYMENT_MODE")
+        sales_df = df \
+                    .withColumnRenamed("sale_id", "SALE_ID")\
+                    .withColumnRenamed("customer_id", "CUSTOMER_ID")\
+                    .withColumnRenamed("product_id", "PRODUCT_ID")\
+                    .withColumnRenamed("sale_date", "SALE_DATE")\
+                    .withColumnRenamed("quantity", "QUANTITY")\
+                    .withColumnRenamed("discount", "DISCOUNT")\
+                    .withColumnRenamed("shipping_cost", "SHIPPING_COST")\
+                    .withColumnRenamed("order_status", "ORDER_STATUS")\
+                    .withColumnRenamed("payment_mode", "PAYMENT_MODE")
                     
               
          
-        sales_df_tgt =sales_df.select(
-                    col("SALE_ID"),
-                    col("CUSTOMER_ID"),
-                    col("PRODUCT_ID"),
-                    col("SALE_DATE"),
-                    col("QUANTITY"),
-                    col("DISCOUNT"),
-                    col("SHIPPING_COST"),
-                    col("ORDER_STATUS"),
-                    col("PAYMENT_MODE")
-        )
+        sales_df_tgt =sales_df\
+                        .select(
+                            col("SALE_ID"),
+                            col("CUSTOMER_ID"),
+                            col("PRODUCT_ID"),
+                            col("SALE_DATE"),
+                            col("QUANTITY"),
+                            col("DISCOUNT"),
+                            col("SHIPPING_COST"),
+                            col("ORDER_STATUS"),
+                            col("PAYMENT_MODE")
+                        )   
 
         # Validate no duplicates based on SUPPLIER_ID
         validator = DuplicateValidator()
