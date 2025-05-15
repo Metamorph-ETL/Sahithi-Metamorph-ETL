@@ -86,7 +86,7 @@ def m_ingest_data_into_products():
                         .withColumnRenamed("product_id", "PRODUCT_ID")\
                         .withColumnRenamed("product_name", "PRODUCT_NAME")\
                         .withColumnRenamed("category", "CATEGORY")\
-                        .withColumnRenamed("price", "PRICE")\
+                        .withColumnRenamed("selling_price", "SELLING_PRICE")\
                         .withColumnRenamed("cost_price", "COST_PRICE")\
                         .withColumnRenamed("stock_quantity", "STOCK_QUANTITY")\
                         .withColumnRenamed("reorder_level", "REORDER_LEVEL")\
@@ -100,7 +100,7 @@ def m_ingest_data_into_products():
                                 col("PRODUCT_ID"), 
                                 col("PRODUCT_NAME"),
                                 col( "CATEGORY"),
-                                col( "PRICE"),
+                                col( "SELLING_PRICE"),
                                 col("COST_PRICE"),
                                 col("STOCK_QUANTITY"),
                                 col( "REORDER_LEVEL"),
