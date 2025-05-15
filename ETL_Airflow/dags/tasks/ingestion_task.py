@@ -87,9 +87,11 @@ def m_ingest_data_into_products():
                         .withColumnRenamed("product_name", "PRODUCT_NAME")\
                         .withColumnRenamed("category", "CATEGORY")\
                         .withColumnRenamed("price", "PRICE")\
+                        .withColumnRenamed("cost_price", "COST_PRICE")\
                         .withColumnRenamed("stock_quantity", "STOCK_QUANTITY")\
                         .withColumnRenamed("reorder_level", "REORDER_LEVEL")\
-                        .withColumnRenamed("supplier_id", "SUPPLIER_ID")
+                        .withColumnRenamed("supplier_id", "SUPPLIER_ID")\
+                        
                 
         
 
@@ -99,9 +101,10 @@ def m_ingest_data_into_products():
                                 col("PRODUCT_NAME"),
                                 col( "CATEGORY"),
                                 col( "PRICE"),
+                                col("COST_PRICE"),
                                 col("STOCK_QUANTITY"),
                                 col( "REORDER_LEVEL"),
-                                col( "SUPPLIER_ID")
+                                col( "SUPPLIER_ID"),                               
                             )
 
         # Validate no duplicates based on PRODUCTS_ID
