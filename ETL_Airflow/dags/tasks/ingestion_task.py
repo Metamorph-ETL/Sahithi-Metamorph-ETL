@@ -99,12 +99,12 @@ def m_ingest_data_into_products():
                             .select(                       
                                 col("PRODUCT_ID"), 
                                 col("PRODUCT_NAME"),
-                                col( "CATEGORY"),
-                                col( "SELLING_PRICE"),
+                                col("CATEGORY"),
+                                col("SELLING_PRICE"),
                                 col("COST_PRICE"),
                                 col("STOCK_QUANTITY"),
-                                col( "REORDER_LEVEL"),
-                                col( "SUPPLIER_ID"),                               
+                                col("REORDER_LEVEL"),
+                                col("SUPPLIER_ID"),                               
                             )
 
         # Validate no duplicates based on PRODUCTS_ID
