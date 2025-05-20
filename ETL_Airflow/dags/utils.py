@@ -103,18 +103,37 @@ class DuplicateValidator:
         logging.info("No duplicates found. Validation passed.")
 
 # Load DataFrame into PostgreSQL
-def load_to_postgres(df, table_name):
+def load_to_postgres(df, table_name,mode):
     jdbc_url = "jdbc:postgresql://host.docker.internal:5432/meta_morph"
     properties = {
         "user": "postgres",
         "password": POSTGRES_PASSWORD,
         "driver": "org.postgresql.Driver"
     }
+    
+    log.info("Connecting to jdbc for loading to postgres table") 
     df.write.jdbc(
         url=jdbc_url,
         table=table_name,
-        mode="overwrite", 
+        mode=mode, 
         properties=properties
     )
-    log.info("Connecting to jbbc for loading to postgress table") 
     log.info("Loaded data into PostgreSQL successfully")
+
+
+def read_from_postgres(spark, table_name):
+    jdbc_url = "jdbc:postgresql://host.docker.internal:5432/meta_morph"
+    properties = {
+        "user": "postgres",
+        "password": POSTGRES_PASSWORD,
+        "driver": "org.postgresql.Driver"
+    }
+
+    log.info(f"Reading table '{table_name}' from PostgreSQL...")
+    df = spark.read.jdbc(
+        url=jdbc_url,
+        table=table_name,
+        properties=properties
+    )
+    log.info(f"Successfully read '{table_name}' from PostgreSQL.")
+    return df

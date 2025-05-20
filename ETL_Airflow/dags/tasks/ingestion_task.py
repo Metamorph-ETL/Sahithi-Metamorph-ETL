@@ -1,8 +1,10 @@
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
-from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator
+from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator,read_from_postgres
 import logging
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, sum as _sum, countDistinct, current_date, row_number,when
+from pyspark.sql.window import Window
+
 
 log = logging.getLogger(__name__)
 
@@ -49,9 +51,9 @@ def m_ingest_data_into_suppliers():
 
 
         # Load the cleaned data to PostgreSQL        
-        load_to_postgres(suppliers_df_tgt, "raw.suppliers")
+        load_to_postgres(suppliers_df_tgt, "raw.suppliers","overwrite")
         
-        log.info("Suppliers ETL process completed successfully.")
+       
         return "Suppliers ETL process completed successfully."
 
     except Exception as e:
@@ -112,9 +114,9 @@ def m_ingest_data_into_products():
         validator.validate_no_duplicates(df, key_columns=["PRODUCT_ID"])
 
         # Load data       
-        load_to_postgres(products_df_tgt, "raw.products")
+        load_to_postgres(products_df_tgt, "raw.products","overwrite")
 
-        log.info("Products ETL process completed successfully.")
+        
         return "Products ETL process completed successfully."
 
     except Exception as e:
@@ -167,9 +169,9 @@ def m_ingest_data_into_customers():
         validator = DuplicateValidator()
         validator.validate_no_duplicates(df, key_columns=["CUSTOMER_ID"])
         # Load data
-        load_to_postgres(customers_df_tgt, "raw.customers")
+        load_to_postgres(customers_df_tgt, "raw.customers","overwrite")
 
-        log.info("Customers ETL process completed successfully.")
+        
         return "Customers ETL process completed successfully."
 
     except Exception as e:
@@ -236,9 +238,9 @@ def m_ingest_data_into_sales():
         validator.validate_no_duplicates(sales_df_tgt, key_columns=["SALE_ID"])
 
         # Load the cleaned data to PostgreSQL
-        load_to_postgres(sales_df_tgt, "raw.sales")
+        load_to_postgres(sales_df_tgt, "raw.sales","overwrite")
         
-        log.info("Sales ETL process completed successfully.")
+        
         return "Sales ETL process completed successfully."
 
     except Exception as e:
@@ -247,5 +249,93 @@ def m_ingest_data_into_sales():
 
     finally:
             spark.stop()
-           
- 
+
+
+
+@task
+def m_load_supplier_performance():
+    try:
+        spark = init_spark()
+
+        
+        SQ_Shortcut_To_sales = read_from_postgres(spark, "raw.sales")        
+        SQ_Shortcut_To_products = read_from_postgres(spark, "raw.products")
+        SQ_Shortcut_To_suppliers = read_from_postgres(spark, "raw.suppliers")
+       
+        sales_filtered = SQ_Shortcut_To_sales.filter(col("ORDER_STATUS") != "CANCELLED")
+
+        
+        JNR_Sales_Products = sales_filtered.join(
+            SQ_Shortcut_To_products, on="PRODUCT_ID", how="inner"
+        )
+        JNR_Products_Suppliers = JNR_Sales_Products.join(
+            SQ_Shortcut_To_suppliers, on="SUPPLIER_ID", how="inner"
+        )
+
+       
+        JNR_Products_Suppliers = JNR_Products_Suppliers.withColumn(
+            "REVENUE", col("QUANTITY") * col("SELLING_PRICE")
+        )
+
+        
+        AGG_TRANS_Product_Level = JNR_Products_Suppliers.groupBy(
+            "SUPPLIER_ID", "PRODUCT_ID", "PRODUCT_NAME"
+        ).agg(
+            _sum("REVENUE").alias("agg_product_revenue"),
+            _sum("QUANTITY").alias("agg_stock_sold")
+        )
+
+       
+        AGG_TRANS_Supplier_Level = AGG_TRANS_Product_Level.groupBy("SUPPLIER_ID").agg(
+            _sum("agg_product_revenue").alias("agg_total_revenue"),
+            countDistinct("PRODUCT_ID").alias("agg_total_products_sold"),
+            _sum("agg_stock_sold").alias("agg_total_stock_sold")
+        )
+
+       
+        windowSpec = Window.partitionBy("SUPPLIER_ID").orderBy(col("agg_product_revenue").desc())
+        ranked_df = AGG_TRANS_Product_Level.withColumn("RANK", row_number().over(windowSpec))
+
+        top_selling_product_df = ranked_df.filter(col("RANK") == 1).select(
+            "SUPPLIER_ID", col("PRODUCT_NAME").alias("TOP_SELLING_PRODUCT")
+        )
+
+        final_result = SQ_Shortcut_To_suppliers.join(
+            AGG_TRANS_Supplier_Level, on="SUPPLIER_ID", how="left"
+        ).join(
+            top_selling_product_df, on="SUPPLIER_ID", how="left"
+        ).fillna(0, subset=[
+            "agg_total_revenue", "agg_total_products_sold", "agg_total_stock_sold"
+        ]).withColumn(
+            "TOP_SELLING_PRODUCT",
+            when(
+                col("TOP_SELLING_PRODUCT").isNull() | (col("TOP_SELLING_PRODUCT") == ""),
+                "No Sales"
+            ).otherwise(col("TOP_SELLING_PRODUCT"))
+        ).withColumn("DAY_DT", current_date())
+
+        Shortcut_To_supplier_performance_tgt = final_result.select(
+                                                col("DAY_DT"),
+                                                col("SUPPLIER_ID"),
+                                                col("SUPPLIER_NAME"),
+                                                col("agg_total_revenue").alias("TOTAL_REVENUE"),
+                                                col("agg_total_products_sold").alias("TOTAL_PRODUCTS_SOLD"),
+                                                col("agg_total_stock_sold").alias("TOTAL_STOCK_SOLD"),
+                                                col("TOP_SELLING_PRODUCT")
+                                              )
+
+        
+        validator = DuplicateValidator()
+        validator.validate_no_duplicates(Shortcut_To_supplier_performance_tgt,key_columns=["SUPPLIER_ID", "DAY_DT"] )
+
+      
+        load_to_postgres(Shortcut_To_supplier_performance_tgt,"legacy.supplier_performance","append")   
+
+        return "Supplier Performance task finished."
+
+    except Exception as e:
+        log.error(f"ETL task failed: {str(e)}", exc_info=True)
+        raise
+
+    finally:
+        spark.stop()
