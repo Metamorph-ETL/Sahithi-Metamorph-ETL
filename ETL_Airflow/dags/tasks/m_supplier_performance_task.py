@@ -7,13 +7,13 @@ from pyspark.sql.window import Window
 
 log = logging.getLogger(__name__)
 
-
 @task
 def m_load_supplier_performance():
     try:
+        # Initialize Spark session
         spark = init_spark()
 
-        # Processing Node : SQ_Shortcut_To_sales -reads data from sales table
+        # Processing Node : SQ_Shortcut_To_sales - Reads data from 'raw.sales' table
         SQ_Shortcut_To_sales = read_from_postgres(spark, "raw.sales")
         SQ_Shortcut_To_sales = SQ_Shortcut_To_sales\
                                  .select(
@@ -23,6 +23,7 @@ def m_load_supplier_performance():
                                 )        
         log.info(f"Data Frame : 'SQ_Shortcut_To_sales' is built....")
 
+        # Processing Node : SQ_Shortcut_To_Products - Reads data from 'raw.products' table
         SQ_Shortcut_To_Products = read_from_postgres(spark, "raw.products")
         SQ_Shortcut_To_Products = SQ_Shortcut_To_Products \
                                      .select(                                      
@@ -33,6 +34,7 @@ def m_load_supplier_performance():
                                     )
         log.info(f"Data Frame : 'SQ_Shortcut_To_products' is built....")
 
+        # Processing Node : SQ_Shortcut_To_Suppliers - Reads data from 'raw.suppliers' table
         SQ_Shortcut_To_Suppliers = read_from_postgres(spark, "raw.suppliers")
         SQ_Shortcut_To_Suppliers =  SQ_Shortcut_To_Suppliers\
                                     .select(
@@ -41,11 +43,11 @@ def m_load_supplier_performance():
                                     )
         log.info(f"Data Frame : 'SQ_Shortcut_To_suppliers' is built....")
         
-       
+        # Processing Node : FIL_Cancelled_Sales - Filters out cancelled orders
         FIL_Cancelled_Sales = SQ_Shortcut_To_sales.filter(SQ_Shortcut_To_sales.ORDER_STATUS != "CANCELLED")
         log.info(f"Data Frame : 'FIL_Cancelled_Sales' is built....")
         
-        
+        # Processing Node : JNR_Sales_Products - Joins sales data with product data on PRODUCT_ID
         JNR_Sales_Products = FIL_Cancelled_Sales\
                                 .join( 
                                     SQ_Shortcut_To_Products, 
@@ -61,7 +63,7 @@ def m_load_supplier_performance():
                                 )       
         log.info(f"Data Frame : 'JNR_Sales_Products' is built....")
         
-        # Join with suppliers with selected columns
+        # Processing Node : JNR_Products_Suppliers - Joins product-sales data with supplier data on SUPPLIER_ID
         JNR_Products_Suppliers = JNR_Sales_Products\
                                     .join(
                                         SQ_Shortcut_To_Suppliers,
@@ -75,13 +77,13 @@ def m_load_supplier_performance():
                                         JNR_Sales_Products.SELLING_PRICE,
                                         SQ_Shortcut_To_Suppliers.SUPPLIER_ID,
                                         SQ_Shortcut_To_Suppliers.SUPPLIER_NAME  
-                                     ).withColumn(
+                                     )\
+                                    .withColumn(
                                         "REVENUE", col("QUANTITY") * col("SELLING_PRICE")
                                     )        
         log.info(f"Data Frame : 'JNR_Products_Suppliers' is built....")                             
                                    
-                               
-                                           
+        # Processing Node : AGG_TRANS_Product_Level - Aggregates data at the product level per supplier
         AGG_TRANS_Product_Level = JNR_Products_Suppliers.groupBy(
             "SUPPLIER_ID", "PRODUCT_ID", "PRODUCT_NAME"
         ).agg(
@@ -90,6 +92,7 @@ def m_load_supplier_performance():
         )
         log.info(f"Data Frame : 'AGG_TRANS_Product_Level' is built....")
        
+        # Processing Node : AGG_TRANS_Supplier_Level - Aggregates data at the supplier level
         AGG_TRANS_Supplier_Level = AGG_TRANS_Product_Level.groupBy("SUPPLIER_ID").agg(
             _sum("agg_product_revenue").alias("agg_total_revenue"),
             countDistinct("PRODUCT_ID").alias("agg_total_products_sold"),
@@ -97,14 +100,17 @@ def m_load_supplier_performance():
         )
         log.info(f"Data Frame : 'AGG_TRANS_Supplier_Level' is built....")
        
+        # Processing Node : RNK_Suppliers_df - Ranks products per supplier based on revenue
         windowSpec = Window.partitionBy("SUPPLIER_ID").orderBy(col("agg_product_revenue").desc())
         RNK_Suppliers_df = AGG_TRANS_Product_Level.withColumn("RANK", row_number().over(windowSpec))
 
+        # Processing Node : Top_Selling_Product_df - Filters to get the top selling product per supplier
         Top_Selling_Product_df = RNK_Suppliers_df.filter(col("RANK") == 1).select(
             "SUPPLIER_ID", col("PRODUCT_NAME").alias("TOP_SELLING_PRODUCT")
         )
         log.info(f"Data Frame : 'Top_Selling_Product_df' is built....")
 
+        # Processing Node : JNR_Supplier_Aggregates_And_Top_Product - Combines all supplier metrics and top product
         JNR_Supplier_Aggregates_And_Top_Product = SQ_Shortcut_To_Suppliers.join(
             AGG_TRANS_Supplier_Level, on="SUPPLIER_ID", how="left"
         ).join(
@@ -120,6 +126,7 @@ def m_load_supplier_performance():
         ).withColumn("DAY_DT", current_date())
         log.info(f"Data Frame : 'JNR_Supplier_Aggregates_And_Top_Product' is built....")
 
+        # Processing Node : Shortcut_To_Supplier_Performance_Tgt - Final selection for loading to target
         Shortcut_To_Supplier_Performance_Tgt = JNR_Supplier_Aggregates_And_Top_Product.select(
                                                 col("DAY_DT"),
                                                 col("SUPPLIER_ID"),

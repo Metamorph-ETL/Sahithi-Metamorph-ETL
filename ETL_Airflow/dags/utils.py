@@ -103,7 +103,7 @@ class DuplicateValidator:
         logging.info("No duplicates found. Validation passed.")
 
 # Load DataFrame into PostgreSQL
-def load_to_postgres(df, table_name,mode):
+def load_to_postgres(df, table_name, mode):
     jdbc_url = "jdbc:postgresql://host.docker.internal:5432/meta_morph"
     properties = {
         "user": "postgres",
