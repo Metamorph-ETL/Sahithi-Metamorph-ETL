@@ -4,6 +4,8 @@ from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator
 import logging
 from pyspark.sql.functions import col
 
+
+
 log = logging.getLogger(__name__)
 
 @task
@@ -49,9 +51,9 @@ def m_ingest_data_into_suppliers():
 
 
         # Load the cleaned data to PostgreSQL        
-        load_to_postgres(suppliers_df_tgt, "raw.suppliers")
+        load_to_postgres(suppliers_df_tgt, "raw.suppliers", "overwrite")
         
-        log.info("Suppliers ETL process completed successfully.")
+       
         return "Suppliers ETL process completed successfully."
 
     except Exception as e:
@@ -112,9 +114,9 @@ def m_ingest_data_into_products():
         validator.validate_no_duplicates(df, key_columns=["PRODUCT_ID"])
 
         # Load data       
-        load_to_postgres(products_df_tgt, "raw.products")
+        load_to_postgres(products_df_tgt, "raw.products", "overwrite")
 
-        log.info("Products ETL process completed successfully.")
+        
         return "Products ETL process completed successfully."
 
     except Exception as e:
@@ -167,9 +169,9 @@ def m_ingest_data_into_customers():
         validator = DuplicateValidator()
         validator.validate_no_duplicates(df, key_columns=["CUSTOMER_ID"])
         # Load data
-        load_to_postgres(customers_df_tgt, "raw.customers")
+        load_to_postgres(customers_df_tgt, "raw.customers", "overwrite")
 
-        log.info("Customers ETL process completed successfully.")
+        
         return "Customers ETL process completed successfully."
 
     except Exception as e:
@@ -236,9 +238,9 @@ def m_ingest_data_into_sales():
         validator.validate_no_duplicates(sales_df_tgt, key_columns=["SALE_ID"])
 
         # Load the cleaned data to PostgreSQL
-        load_to_postgres(sales_df_tgt, "raw.sales")
+        load_to_postgres(sales_df_tgt, "raw.sales", "overwrite")
         
-        log.info("Sales ETL process completed successfully.")
+        
         return "Sales ETL process completed successfully."
 
     except Exception as e:
@@ -247,5 +249,4 @@ def m_ingest_data_into_sales():
 
     finally:
             spark.stop()
-           
- 
+
