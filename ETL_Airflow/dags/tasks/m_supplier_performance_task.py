@@ -19,7 +19,8 @@ def m_load_supplier_performance():
                                  .select(
                                     col("ORDER_STATUS"),
                                     col("PRODUCT_ID"),
-                                    col("QUANTITY")                                  
+                                    col("QUANTITY"),
+                                    col("DISCOUNT")                                 
                                 )        
         log.info(f"Data Frame : 'SQ_Shortcut_To_sales' is built....")
 
@@ -56,6 +57,7 @@ def m_load_supplier_performance():
                                 )\
                                 .select(
                                     SQ_Shortcut_To_sales.QUANTITY,
+                                    SQ_Shortcut_To_sales.DISCOUNT,
                                     SQ_Shortcut_To_Products.PRODUCT_ID, 
                                     SQ_Shortcut_To_Products.SUPPLIER_ID,
                                     SQ_Shortcut_To_Products.PRODUCT_NAME,
@@ -75,11 +77,12 @@ def m_load_supplier_performance():
                                         JNR_Sales_Products.PRODUCT_NAME,
                                         JNR_Sales_Products.QUANTITY,
                                         JNR_Sales_Products.SELLING_PRICE,
+                                        JNR_Sales_Products.DISCOUNT,
                                         SQ_Shortcut_To_Suppliers.SUPPLIER_ID,
                                         SQ_Shortcut_To_Suppliers.SUPPLIER_NAME  
                                      )\
                                     .withColumn(
-                                        "REVENUE", col("QUANTITY") * col("SELLING_PRICE")
+                                        "REVENUE",  (col("SELLING_PRICE") - (col("SELLING_PRICE") * col("DISCOUNT") / 100)) * col("QUANTITY")
                                     )        
         log.info(f"Data Frame : 'JNR_Products_Suppliers' is built....")                             
                                    
@@ -137,7 +140,7 @@ def m_load_supplier_performance():
                                                 col("TOP_SELLING_PRODUCT")
                                               )
         log.info(f"Data Frame : 'Shortcut_To_Supplier_Performance_Tgt' is built....")
-        
+
         validator = DuplicateValidator()
         validator.validate_no_duplicates(Shortcut_To_Supplier_Performance_Tgt,key_columns=["SUPPLIER_ID", "DAY_DT"] )
 
