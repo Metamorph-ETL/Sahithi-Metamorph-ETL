@@ -1,8 +1,8 @@
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
-from utils import init_spark,load_to_postgres,DuplicateValidator, read_from_postgres
+from utils import init_spark, load_to_postgres, DuplicateValidator, read_from_postgres
 import logging
-from pyspark.sql.functions import col, sum , countDistinct, current_date, row_number,when
+from pyspark.sql.functions import col, sum , countDistinct, current_date, row_number, when
 from pyspark.sql.window import Window
 
 log = logging.getLogger(__name__)

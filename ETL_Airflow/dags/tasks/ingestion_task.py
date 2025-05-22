@@ -1,6 +1,6 @@
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
-from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator,read_from_postgres
+from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator
 import logging
 from pyspark.sql.functions import col
 
