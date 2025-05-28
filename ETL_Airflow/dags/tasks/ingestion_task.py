@@ -44,7 +44,7 @@ def m_ingest_data_into_suppliers():
                                 col("CONTACT_DETAILS"),
                                 col("REGION")
                             )      
-        suppliers_legacy_df = suppliers_df\
+        suppliers_legacy_df = suppliers_df_tgt\
                                .withColumn("DAY_DT", current_date())
 
         suppliers_legacy_df_tgt = suppliers_legacy_df\
@@ -285,7 +285,7 @@ def m_ingest_data_into_sales():
                             col("PAYMENT_MODE")
                         )   
         
-        sales_legacy_df= sales_df_tgt\
+        sales_legacy_df = sales_df_tgt\
                                .withColumn("DAY_DT", current_date())
         
         sales_legacy_df_tgt = sales_legacy_df\
