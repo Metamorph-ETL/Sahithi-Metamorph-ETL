@@ -58,7 +58,7 @@ def m_ingest_data_into_suppliers():
 
         # Validate no duplicates based on SUPPLIER_ID        
         validator = DuplicateValidator()
-        validator.validate_no_duplicates(df, key_columns=["SUPPLIER_ID"])
+        validator.validate_no_duplicates(suppliers_df_tgt, key_columns=["SUPPLIER_ID"])
        
               
 
@@ -144,7 +144,7 @@ def m_ingest_data_into_products():
 
         # Validate no duplicates based on PRODUCTS_ID
         validator = DuplicateValidator()
-        validator.validate_no_duplicates(df, key_columns=["PRODUCT_ID"])
+        validator.validate_no_duplicates(products_df_tgt, key_columns=["PRODUCT_ID"])
 
 
         # Load data       
@@ -217,7 +217,7 @@ def m_ingest_data_into_customers():
         
        # Validate no duplicates based on CUSTOMERS_ID
         validator = DuplicateValidator()
-        validator.validate_no_duplicates(df, key_columns=["CUSTOMER_ID"])
+        validator.validate_no_duplicates(customers_df_tgt, key_columns=["CUSTOMER_ID"])
         # Load data
         load_to_postgres(customers_df_tgt, "raw.customers_pre", "overwrite")
 
@@ -272,7 +272,7 @@ def m_ingest_data_into_sales():
                     
               
          
-        sales_df_tgt =sales_df\
+        sales_df_tgt = sales_df\
                         .select(
                             col("SALE_ID"),
                             col("CUSTOMER_ID"),
