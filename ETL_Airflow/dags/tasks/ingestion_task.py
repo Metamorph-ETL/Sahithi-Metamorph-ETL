@@ -2,7 +2,7 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator
 import logging
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col,current_date
 
 
 
@@ -37,21 +37,36 @@ def m_ingest_data_into_suppliers():
                         .withColumnRenamed("region", "REGION")
               
         
-        suppliers_df_tgt =suppliers_df\
+        suppliers_df_tgt = suppliers_df\
                             .select(
                                 col("SUPPLIER_ID"),
                                 col("SUPPLIER_NAME"),
                                 col("CONTACT_DETAILS"),
                                 col("REGION")
-                            )           
+                            )      
+        suppliers_df_legacy = suppliers_df\
+                               .withColumn("DAY_DT", current_date())
+
+        suppliers_df_tgt_legacy = suppliers_df_legacy\
+                                    .select(
+                                        col("DAY_DT"),
+                                        col("SUPPLIER_ID"),
+                                        col("SUPPLIER_NAME"),
+                                        col("CONTACT_DETAILS"),
+                                        col("REGION")
+                                    )
 
         # Validate no duplicates based on SUPPLIER_ID        
         validator = DuplicateValidator()
         validator.validate_no_duplicates(df, key_columns=["SUPPLIER_ID"])
+       
+              
 
 
         # Load the cleaned data to PostgreSQL        
-        load_to_postgres(suppliers_df_tgt, "raw.suppliers", "overwrite")
+        load_to_postgres(suppliers_df_tgt, "raw.suppliers_pre", "overwrite")
+
+        load_to_postgres(suppliers_df_tgt_legacy, "legacy.suppliers", "append")
         
        
         return "Suppliers ETL process completed successfully."
@@ -97,7 +112,7 @@ def m_ingest_data_into_products():
                 
         
 
-        products_df_tgt =products_df\
+        products_df_tgt = products_df\
                             .select(                       
                                 col("PRODUCT_ID"), 
                                 col("PRODUCT_NAME"),
@@ -108,13 +123,34 @@ def m_ingest_data_into_products():
                                 col("REORDER_LEVEL"),
                                 col("SUPPLIER_ID"),                               
                             )
+        products_df_legacy = products_df_tgt\
+                               .withColumn("DAY_DT", current_date())
+        
+        products_df_tgt_legacy = products_df_legacy\
+                                   .select(
+                                       col("DAY_DT"),
+                                       col("PRODUCT_ID"), 
+                                       col("PRODUCT_NAME"),
+                                       col("CATEGORY"),
+                                       col("SELLING_PRICE"),
+                                       col("COST_PRICE"),
+                                       col("STOCK_QUANTITY"),
+                                       col("REORDER_LEVEL"),
+                                       col("SUPPLIER_ID")
+                                    ) 
+                                    
+                                   
+      
 
         # Validate no duplicates based on PRODUCTS_ID
         validator = DuplicateValidator()
         validator.validate_no_duplicates(df, key_columns=["PRODUCT_ID"])
 
+
         # Load data       
-        load_to_postgres(products_df_tgt, "raw.products", "overwrite")
+        load_to_postgres(products_df_tgt, "raw.products_pre", "overwrite")
+
+        load_to_postgres(products_df_tgt_legacy, "legacy.products", "append")
 
         
         return "Products ETL process completed successfully."
@@ -147,7 +183,7 @@ def m_ingest_data_into_customers():
 
         # Create DataFrame and rename columns
         df = spark.createDataFrame(data)
-        customers_df =df\
+        customers_df = df\
                         .withColumnRenamed("customer_id", "CUSTOMER_ID")\
                         .withColumnRenamed("name", "NAME")\
                         .withColumnRenamed("city", "CITY")\
@@ -156,7 +192,7 @@ def m_ingest_data_into_customers():
                 
         
 
-        customers_df_tgt=customers_df\
+        customers_df_tgt = customers_df\
                             .select(
                                 col("CUSTOMER_ID"),
                                 col("NAME"),
@@ -164,12 +200,28 @@ def m_ingest_data_into_customers():
                                 col("EMAIL"),
                                 col("PHONE_NUMBER")
                             )
-
-        # Validate no duplicates based on CUSTOMERS_ID
+        customers_df_legacy = customers_df_tgt\
+                               .withColumn("DAY_DT", current_date())
+        
+        
+        customers_df_tgt_legacy = customers_df_legacy\
+                                    .select(
+                                        col("DAY_DT"),
+                                        col("CUSTOMER_ID"),
+                                        col("NAME"),
+                                        col("CITY"),
+                                        col("EMAIL"),
+                                        col("PHONE_NUMBER")
+                                    )                                 
+                           
+        
+       # Validate no duplicates based on CUSTOMERS_ID
         validator = DuplicateValidator()
         validator.validate_no_duplicates(df, key_columns=["CUSTOMER_ID"])
         # Load data
-        load_to_postgres(customers_df_tgt, "raw.customers", "overwrite")
+        load_to_postgres(customers_df_tgt, "raw.customers_pre", "overwrite")
+
+        load_to_postgres(customers_df_tgt_legacy, "legacy.customers", "append")
 
         
         return "Customers ETL process completed successfully."
@@ -232,13 +284,35 @@ def m_ingest_data_into_sales():
                             col("ORDER_STATUS"),
                             col("PAYMENT_MODE")
                         )   
+        
+        sales_df_legacy = sales_df_tgt\
+                               .withColumn("DAY_DT", current_date())
+        
+        sales_df_tgt_legacy = sales_df_legacy\
+                                    .select(
+                                        col("DAY_DT"),
+                                        col("SALE_ID"),
+                                        col("CUSTOMER_ID"),
+                                        col("PRODUCT_ID"),
+                                        col("SALE_DATE"),
+                                        col("QUANTITY"),
+                                        col("DISCOUNT"),
+                                        col("SHIPPING_COST"),
+                                        col("ORDER_STATUS"),
+                                        col("PAYMENT_MODE")
+                                    )               
+                                    
+        
+
 
         # Validate no duplicates based on SUPPLIER_ID
         validator = DuplicateValidator()
         validator.validate_no_duplicates(sales_df_tgt, key_columns=["SALE_ID"])
 
         # Load the cleaned data to PostgreSQL
-        load_to_postgres(sales_df_tgt, "raw.sales", "overwrite")
+        load_to_postgres(sales_df_tgt, "raw.sales_pre", "overwrite")
+
+        load_to_postgres(sales_df_tgt_legacy, "legacy.sales", "append")
         
         
         return "Sales ETL process completed successfully."
