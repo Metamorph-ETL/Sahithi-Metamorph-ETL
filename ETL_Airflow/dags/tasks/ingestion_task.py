@@ -44,10 +44,10 @@ def m_ingest_data_into_suppliers():
                                 col("CONTACT_DETAILS"),
                                 col("REGION")
                             )      
-        suppliers_df_legacy = suppliers_df\
+        suppliers_legacy_df = suppliers_df\
                                .withColumn("DAY_DT", current_date())
 
-        suppliers_df_tgt_legacy = suppliers_df_legacy\
+        suppliers_legacy_df_tgt = suppliers_legacy_df\
                                     .select(
                                         col("DAY_DT"),
                                         col("SUPPLIER_ID"),
@@ -66,7 +66,7 @@ def m_ingest_data_into_suppliers():
         # Load the cleaned data to PostgreSQL        
         load_to_postgres(suppliers_df_tgt, "raw.suppliers_pre", "overwrite")
 
-        load_to_postgres(suppliers_df_tgt_legacy, "legacy.suppliers", "append")
+        load_to_postgres(suppliers_legacy_df_tgt, "legacy.suppliers", "append")
         
        
         return "Suppliers ETL process completed successfully."
@@ -123,10 +123,10 @@ def m_ingest_data_into_products():
                                 col("REORDER_LEVEL"),
                                 col("SUPPLIER_ID"),                               
                             )
-        products_df_legacy = products_df_tgt\
+        products_legacy_df = products_df_tgt\
                                .withColumn("DAY_DT", current_date())
         
-        products_df_tgt_legacy = products_df_legacy\
+        products_legacy_df_tgt = products_legacy_df\
                                    .select(
                                        col("DAY_DT"),
                                        col("PRODUCT_ID"), 
@@ -150,7 +150,7 @@ def m_ingest_data_into_products():
         # Load data       
         load_to_postgres(products_df_tgt, "raw.products_pre", "overwrite")
 
-        load_to_postgres(products_df_tgt_legacy, "legacy.products", "append")
+        load_to_postgres(products_legacy_df_tgt, "legacy.products", "append")
 
         
         return "Products ETL process completed successfully."
@@ -200,11 +200,11 @@ def m_ingest_data_into_customers():
                                 col("EMAIL"),
                                 col("PHONE_NUMBER")
                             )
-        customers_df_legacy = customers_df_tgt\
+        customers_legacy_df = customers_df_tgt\
                                .withColumn("DAY_DT", current_date())
         
         
-        customers_df_tgt_legacy = customers_df_legacy\
+        customers_legacy_df_tgt = customers_legacy_df\
                                     .select(
                                         col("DAY_DT"),
                                         col("CUSTOMER_ID"),
@@ -221,7 +221,7 @@ def m_ingest_data_into_customers():
         # Load data
         load_to_postgres(customers_df_tgt, "raw.customers_pre", "overwrite")
 
-        load_to_postgres(customers_df_tgt_legacy, "legacy.customers", "append")
+        load_to_postgres(customers_legacy_df_tgt, "legacy.customers", "append")
 
         
         return "Customers ETL process completed successfully."
@@ -285,10 +285,10 @@ def m_ingest_data_into_sales():
                             col("PAYMENT_MODE")
                         )   
         
-        sales_df_legacy = sales_df_tgt\
+        sales_legacy_df= sales_df_tgt\
                                .withColumn("DAY_DT", current_date())
         
-        sales_df_tgt_legacy = sales_df_legacy\
+        sales_legacy_df_tgt = sales_legacy_df\
                                     .select(
                                         col("DAY_DT"),
                                         col("SALE_ID"),
@@ -312,7 +312,7 @@ def m_ingest_data_into_sales():
         # Load the cleaned data to PostgreSQL
         load_to_postgres(sales_df_tgt, "raw.sales_pre", "overwrite")
 
-        load_to_postgres(sales_df_tgt_legacy, "legacy.sales", "append")
+        load_to_postgres(sales_legacy_df_tgt, "legacy.sales", "append")
         
         
         return "Sales ETL process completed successfully."
