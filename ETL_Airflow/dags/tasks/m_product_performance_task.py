@@ -2,7 +2,7 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from utils import init_spark, load_to_postgres, DuplicateValidator, read_from_postgres
 import logging
-from pyspark.sql.functions import col, sum, countDistinct, current_date, row_number, when
+from pyspark.sql.functions import col, sum, current_date, round, when
 from pyspark.sql.window import Window
 
 log = logging.getLogger(__name__)
@@ -29,9 +29,12 @@ def m_load_product_performance():
         SQ_Shortcut_To_Products = SQ_Shortcut_To_Products \
                                     .select(                                      
                                         col("PRODUCT_ID"),
-                                        col("SUPPLIER_ID"),
+                                        col("COST_PRICE"),
                                         col("PRODUCT_NAME"),
-                                        col("SELLING_PRICE")                                   
+                                        col("SELLING_PRICE"),
+                                        col("CATEGORY"),
+                                        col("STOCK_QUANTITY"),
+                                        col("REORDER_LEVEL")                           
                                     )
         log.info(f"Data Frame : 'SQ_Shortcut_To_products' is built....")        
         
@@ -55,16 +58,82 @@ def m_load_product_performance():
                                     SQ_Shortcut_To_sales.QUANTITY,
                                     SQ_Shortcut_To_sales.DISCOUNT,
                                     SQ_Shortcut_To_Products.PRODUCT_ID, 
-                                    SQ_Shortcut_To_Products.SUPPLIER_ID,
+                                    SQ_Shortcut_To_Products.COST_PRICE,
                                     SQ_Shortcut_To_Products.PRODUCT_NAME,
-                                    SQ_Shortcut_To_Products.SELLING_PRICE
+                                    SQ_Shortcut_To_Products.SELLING_PRICE,
+                                    SQ_Shortcut_To_Products.CATEGORY,
+                                    SQ_Shortcut_To_Products.STOCK_QUANTITY,
+                                    SQ_Shortcut_To_Products.REORDER_LEVEL,
                                 )       
         log.info(f"Data Frame : 'JNR_Sales_Products' is built....")
 
+        # Derives revenue, profit, and discounted price per product row
+        EXP_Calculate_Product_Metrics = JNR_Sales_Products\
+                                            .withColumn("DISCOUNTED_PRICE", col("SELLING_PRICE") * (1 - col("DISCOUNT") / 100)) \
+                                            .withColumn("REVENUE", col("DISCOUNTED_PRICE") * col("QUANTITY")) \
+                                            .withColumn("PROFIT", (col("SELLING_PRICE") - col("COST_PRICE")) * col("QUANTITY"))
+                                        
+            
+       # Aggregate product metrics
+        AGG_TRANS_Product_Level = EXP_Calculate_Product_Metrics\
+                                    .groupBy(
+                                        ["PRODUCT_ID", "PRODUCT_NAME", "CATEGORY", "STOCK_QUANTITY", "REORDER_LEVEL"]
+                                    )\
+                                    .agg(
+                                        round(sum("REVENUE"), 2).alias("TOTAL_SALES_AMOUNT"),
+                                        sum("QUANTITY").alias("TOTAL_QUANTITY_SOLD"),
+                                        round(sum("PROFIT"), 2).alias("PROFIT")
+                                    )
+        
+        # Adds derived metrics like avg price,stock status and date 
+        EXP_Final_Transform = AGG_TRANS_Product_Level \
+                                .withColumn(
+                                    "AVG_SALE_PRICE", 
+                                    round(
+                                        col("TOTAL_SALES_AMOUNT") / col("TOTAL_QUANTITY_SOLD"),
+                                        2)
+                                    ) \
+                                .withColumn(
+                                    "STOCK_LEVEL_STATUS", 
+                                    when(
+                                        col("STOCK_QUANTITY") <= col("REORDER_LEVEL"), 
+                                        ("BELOW_REORDER_LEVEL")
+                                    )\
+                                    .otherwise("STOCK_OK")
+                                )\
+                                .withColumn("DAY_DT", current_date())
+        log.info(f"Data Frame : 'EXP_Final_Transform' is built....")
+
+       
+
+        Shortcut_To_Product_Performance_Tgt = EXP_Final_Transform\
+                                                    .select(
+                                                        col("DAY_DT"),
+                                                        col("PRODUCT_ID"),
+                                                        col("PRODUCT_NAME"),
+                                                        col("TOTAL_SALES_AMOUNT"),
+                                                        col("TOTAL_QUANTITY_SOLD"),
+                                                        col("AVG_SALE_PRICE"),
+                                                        col("STOCK_QUANTITY"),
+                                                        col("REORDER_LEVEL"),
+                                                        col("STOCK_LEVEL_STATUS"),
+                                                        col("PROFIT"),
+                                                        col("CATEGORY")
+                                                    )
+        log.info(f"Data Frame : 'Shortcut_To_Product_Performance_Tgt' is built....")
+
+
+        # Validate and load data
+        validator = DuplicateValidator()
+        validator.validate_no_duplicates(Shortcut_To_Product_Performance_Tgt, key_columns=["PRODUCT_ID", "DAY_DT"]) 
+
+        load_to_postgres(Shortcut_To_Product_Performance_Tgt, "legacy.product_performance", "append")   
+
+        return "Product Performance task finished."         
     
     except Exception as e:
         log.error(f"ETL task failed: {str(e)}", exc_info=True)
-        raise AirflowException(f"Supplier_performance ETL failed: {str(e)}")
+        raise AirflowException(f"Product_performance ETL failed: {str(e)}")
 
     finally:
         spark.stop() 
