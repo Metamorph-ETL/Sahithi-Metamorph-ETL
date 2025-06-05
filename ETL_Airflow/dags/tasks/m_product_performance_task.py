@@ -48,31 +48,32 @@ def m_load_product_performance():
 
          
         # Processing Node : JNR_Sales_Products - Joins sales data with product data on PRODUCT_ID
-        JNR_Sales_Products = FIL_Cancelled_Sales\
+        JNR_Sales_Products = SQ_Shortcut_To_Products\
                                 .join( 
-                                    SQ_Shortcut_To_Products, 
+                                    FIL_Cancelled_Sales, 
                                     on="PRODUCT_ID",
-                                    how="inner"
+                                    how="left"
                                 )\
                                 .select(
-                                    SQ_Shortcut_To_sales.QUANTITY,
-                                    SQ_Shortcut_To_sales.DISCOUNT,
-                                    SQ_Shortcut_To_Products.PRODUCT_ID, 
+                                    SQ_Shortcut_To_Products.PRODUCT_ID,  
                                     SQ_Shortcut_To_Products.COST_PRICE,
                                     SQ_Shortcut_To_Products.PRODUCT_NAME,
                                     SQ_Shortcut_To_Products.SELLING_PRICE,
                                     SQ_Shortcut_To_Products.CATEGORY,
                                     SQ_Shortcut_To_Products.STOCK_QUANTITY,
                                     SQ_Shortcut_To_Products.REORDER_LEVEL,
+                                    FIL_Cancelled_Sales.QUANTITY,
+                                    FIL_Cancelled_Sales.DISCOUNT
                                 )       
         log.info(f"Data Frame : 'JNR_Sales_Products' is built....")
 
         # Derives revenue, profit, and discounted price per product row
         EXP_Calculate_Product_Metrics = JNR_Sales_Products\
                                             .withColumn("DISCOUNTED_PRICE", col("SELLING_PRICE") * (1 - col("DISCOUNT") / 100)) \
-                                            .withColumn("REVENUE", col("DISCOUNTED_PRICE") * col("QUANTITY")) \
-                                            .withColumn("PROFIT", (col("SELLING_PRICE") - col("COST_PRICE")) * col("QUANTITY"))
-                                        
+                                            .withColumn("REVENUE", round(col("DISCOUNTED_PRICE") * col("QUANTITY"))) \
+                                            .withColumn("PROFIT", (col("SELLING_PRICE") - col("COST_PRICE")) * col("QUANTITY"))\
+                                            .fillna(0, ["QUANTITY", "REVENUE", "PROFIT"])
+        log.info(f"Data Frame : 'EXP_Calculate_Product_Metrics' is built....")                              
             
        # Aggregate product metrics
         AGG_TRANS_Product_Level = EXP_Calculate_Product_Metrics\
@@ -83,15 +84,26 @@ def m_load_product_performance():
                                         round(sum("REVENUE"), 2).alias("TOTAL_SALES_AMOUNT"),
                                         sum("QUANTITY").alias("TOTAL_QUANTITY_SOLD"),
                                         round(sum("PROFIT"), 2).alias("PROFIT")
+                                    )\
+                                    .withColumn(  # Add sales status flag here
+                                        "SALES_STATUS",
+                                        when(
+                                            col("TOTAL_QUANTITY_SOLD") == 0,
+                                              "NO_SALES"
+                                        )
+                                        .otherwise("HAS_SALES")
                                     )
+        log.info(f"Data Frame : 'AGG_TRANS_Product_Level' is built....")
         
         # Adds derived metrics like avg price,stock status and date 
         EXP_Final_Transform = AGG_TRANS_Product_Level \
-                                .withColumn(
-                                    "AVG_SALE_PRICE", 
-                                    round(
-                                        col("TOTAL_SALES_AMOUNT") / col("TOTAL_QUANTITY_SOLD"),
-                                        2)
+                                 .withColumn(
+                                        "AVG_SALE_PRICE", 
+                                        when(
+                                            col("TOTAL_QUANTITY_SOLD") > 0,
+                                            round(col("TOTAL_SALES_AMOUNT") / col("TOTAL_QUANTITY_SOLD"), 2)
+                                        )\
+                                        .otherwise(0.0)  
                                     ) \
                                 .withColumn(
                                     "STOCK_LEVEL_STATUS", 
