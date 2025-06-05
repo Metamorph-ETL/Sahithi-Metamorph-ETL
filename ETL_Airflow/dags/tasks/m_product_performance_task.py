@@ -60,14 +60,14 @@ def m_load_product_performance():
                                     SQ_Shortcut_To_Products.PRODUCT_NAME,
                                     SQ_Shortcut_To_Products.SELLING_PRICE,
                                     SQ_Shortcut_To_Products.CATEGORY,
-                                    SQ_Shortcut_To_Products.STOCK_QUANTITY,
+                                    SQ_Shortcut_To_Products.STOCK_QUANTITY, 
                                     SQ_Shortcut_To_Products.REORDER_LEVEL,
                                     FIL_Cancelled_Sales.QUANTITY,
                                     FIL_Cancelled_Sales.DISCOUNT
                                 )       
         log.info(f"Data Frame : 'JNR_Sales_Products' is built....")
 
-        # Derives revenue, profit, and discounted price per product row
+        # Processing Node :  EXP_Calculate_Product_Metrics -  Derives revenue, profit, and discounted price per product row
         EXP_Calculate_Product_Metrics = JNR_Sales_Products\
                                             .withColumn("DISCOUNTED_PRICE", col("SELLING_PRICE") * (1 - col("DISCOUNT") / 100)) \
                                             .withColumn("REVENUE", round(col("DISCOUNTED_PRICE") * col("QUANTITY"))) \
@@ -75,7 +75,7 @@ def m_load_product_performance():
                                             .fillna(0, ["QUANTITY", "REVENUE", "PROFIT"])
         log.info(f"Data Frame : 'EXP_Calculate_Product_Metrics' is built....")                              
             
-       # Aggregate product metrics
+       # Processing Node :  AGG_TRANS_Product_Level -  Aggregate product metrics
         AGG_TRANS_Product_Level = EXP_Calculate_Product_Metrics\
                                     .groupBy(
                                         ["PRODUCT_ID", "PRODUCT_NAME", "CATEGORY", "STOCK_QUANTITY", "REORDER_LEVEL"]
@@ -84,18 +84,10 @@ def m_load_product_performance():
                                         round(sum("REVENUE"), 2).alias("TOTAL_SALES_AMOUNT"),
                                         sum("QUANTITY").alias("TOTAL_QUANTITY_SOLD"),
                                         round(sum("PROFIT"), 2).alias("PROFIT")
-                                    )\
-                                    .withColumn(  # Add sales status flag here
-                                        "SALES_STATUS",
-                                        when(
-                                            col("TOTAL_QUANTITY_SOLD") == 0,
-                                              "NO_SALES"
-                                        )
-                                        .otherwise("HAS_SALES")
                                     )
         log.info(f"Data Frame : 'AGG_TRANS_Product_Level' is built....")
         
-        # Adds derived metrics like avg price,stock status and date 
+        # Processing Node :  EXP_Final_Transform  Adds derived metrics like avg price,stock status and date 
         EXP_Final_Transform = AGG_TRANS_Product_Level \
                                  .withColumn(
                                         "AVG_SALE_PRICE", 
@@ -117,7 +109,8 @@ def m_load_product_performance():
         log.info(f"Data Frame : 'EXP_Final_Transform' is built....")
 
        
-
+        
+        # Processing Node : Shortcut_To_Prodct_Performance_Tgt - Final selection for loading to target
         Shortcut_To_Product_Performance_Tgt = EXP_Final_Transform\
                                                     .select(
                                                         col("DAY_DT"),
