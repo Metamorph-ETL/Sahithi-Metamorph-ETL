@@ -10,6 +10,7 @@ log = logging.getLogger(__name__)
 @task
 def m_load_supplier_performance():
     try:
+    
         # Initialize Spark session
         spark = init_spark()
 
@@ -136,6 +137,7 @@ def m_load_supplier_performance():
                                     .select(
                                         SQ_Shortcut_To_Suppliers.SUPPLIER_ID,
                                         SQ_Shortcut_To_Suppliers.SUPPLIER_NAME,
+                                        
                                         AGG_TRANS_Supplier_Level.agg_total_revenue,
                                         AGG_TRANS_Supplier_Level.agg_total_products_sold,
                                         AGG_TRANS_Supplier_Level.agg_total_stock_sold
@@ -202,4 +204,4 @@ def m_load_supplier_performance():
         spark.stop()     
                                                                                                           
                               
-        
+    
