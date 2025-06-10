@@ -76,8 +76,16 @@ def m_load_customer_sales_report():
         # Processing Node : EXP_Calculate_Metrics - Calculates derived fields
         EXP_Calculate_Metrics = JNR_All_Data\
                                     .withColumn("DAY_DT", current_date())\
-                                    .withColumn("SALE_DATE", when(col("SALE_DATE").isNull(), date_sub(current_date(), 1))
-                                          .otherwise(col("SALE_DATE")))\
+                                    .withColumn("SALE_DATE", 
+                                            when(
+                                                col("SALE_DATE").isNull(), 
+                                                date_sub(current_date(),
+                                                 1)
+                                            )\
+                                          .otherwise(
+                                              col("SALE_DATE")
+                                              )
+                                            )\
                                     .withColumn("SALE_MONTH", month(col("SALE_DATE")))\
                                     .withColumn("SALE_YEAR", year(col("SALE_DATE")))\
                                     .withColumn("PRICE", round(col("SELLING_PRICE"), 2))\
@@ -134,7 +142,7 @@ def m_load_customer_sales_report():
                                     .select(
                                         col("DAY_DT"),
                                         col("CUSTOMER_ID"),
-                                        col("NAME"),
+                                        col("NAME").alias("CUSTOMER_NAME"),
                                         col("SALE_ID"),
                                         col("CITY"),
                                         col("PRODUCT_NAME"),
