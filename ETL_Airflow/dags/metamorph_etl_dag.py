@@ -18,7 +18,7 @@ def etl_process():
     sales_task = m_ingest_data_into_sales()
     supplier_performance_task = m_load_supplier_performance()
     product_performance_task = m_load_product_performance()
-    customer_sales_report_task = m_load_customer_sales_report
+    customer_sales_report_task = m_load_customer_sales_report()
 
     # Set dependencies inside the DAG function
     [supplier_task, product_task, customer_task, sales_task]  >> supplier_performance_task >>  product_performance_task >> customer_sales_report_task

@@ -91,7 +91,7 @@ def m_load_customer_sales_report():
                                     .groupBy("CUSTOMER_ID")\
                                     .agg(sum("SALE_AMOUNT").alias("TOTAL_SPENDING"))
         
-        # Add percent rank for loyalty tier calculation
+        # Processing Node : Add percent rank for loyalty tier calculation
         windowSpec = Window.orderBy(col("TOTAL_SPENDING").desc())
         AGG_Customer_Spending = AGG_Customer_Spending\
                                     .withColumn("SPENDING_RANK", percent_rank().over(windowSpec))
@@ -105,8 +105,14 @@ def m_load_customer_sales_report():
                                     how="left"
                                 )\
                                 .withColumn("LOYALTY_TIER",
-                                    when(col("SPENDING_RANK") <= 0.2, "Gold")
-                                     .when(col("SPENDING_RANK") <= 0.5, "Silver")
+                                    when(
+                                        col("SPENDING_RANK") <= 0.2, 
+                                        "Gold"
+                                    )\
+                                    .when(
+                                        col("SPENDING_RANK") <= 0.5, 
+                                        "Silver"
+                                    )\
                                      .otherwise("Bronze")
                                 )
         log.info(f"Data Frame : 'JNR_With_Loyalty' is built....")
@@ -114,8 +120,11 @@ def m_load_customer_sales_report():
         # Processing Node : EXP_Final_Transform - Final transformations
         EXP_Final_Transform = JNR_With_Loyalty\
                                 .withColumn("TOP_PERFORMER", 
-                                    when(col("SALE_AMOUNT") > lit(1000), True)
-                                     .otherwise(False)  # Adjust threshold as needed
+                                    when(
+                                        col("SALE_AMOUNT") > lit(1000), 
+                                        True
+                                    )
+                                     .otherwise(False)  
                                 )\
                                 .withColumn("LOAD_TSTMP", current_timestamp())
         log.info(f"Data Frame : 'EXP_Final_Transform' is built....")
