@@ -143,7 +143,7 @@ def m_load_customer_sales_report():
                                  .select(
                                         col("DAY_DT"),
                                         col("CUSTOMER_ID"),
-                                        col("NAME"),
+                                        col("NAME").alias("CUSTOMER_NAME"),
                                         col("SALE_ID"),
                                         col("CITY"),
                                         col("PRODUCT_NAME"),
