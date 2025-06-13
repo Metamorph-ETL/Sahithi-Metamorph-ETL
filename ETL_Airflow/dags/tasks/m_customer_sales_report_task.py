@@ -29,7 +29,7 @@ def m_load_customer_sales_report():
 
         # Processing Node : SQ_Shortcut_To_Products - Reads data from 'raw.products' table
         SQ_Shortcut_To_Products = read_from_postgres(spark, "raw.products")
-        SQ_Shortcut_To_Products = SQ_Shortcut_To_Products \
+        SQ_Shortcut_To_Products = SQ_Shortcut_To_Products\
                                     .select(                                      
                                         col("PRODUCT_ID"),
                                         col("PRODUCT_NAME"),
@@ -40,7 +40,7 @@ def m_load_customer_sales_report():
 
         # Processing Node : SQ_Shortcut_To_Customers - Reads data from 'raw.customers' table
         SQ_Shortcut_To_Customers = read_from_postgres(spark, "raw.customers")
-        SQ_Shortcut_To_Customers = SQ_Shortcut_To_Customers \
+        SQ_Shortcut_To_Customers = SQ_Shortcut_To_Customers\
                                     .select(
                                         col("CUSTOMER_ID"),
                                         col("NAME"),
