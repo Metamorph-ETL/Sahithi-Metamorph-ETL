@@ -168,10 +168,13 @@ def m_load_customer_sales_report():
                                             JNR_With_Loyalty.QUANTITY,
                                             JNR_With_Loyalty.PRICE,
                                             JNR_With_Loyalty.SALE_AMOUNT,
-                                            JNR_With_Loyalty.LOYALTY_TIER,
-                                            when(col("TOP_PERFORMER").isNull(), "N").otherwise(col("TOP_PERFORMER")).alias("TOP_PERFORMER"),
-                                            current_timestamp().alias("LOAD_TSTMP"),
-                                    )
+                                            JNR_With_Loyalty.LOYALTY_TIER
+                                   )\
+                                    .withColumn(
+                                            "TOP_PERFORMER",
+                                            when(col("TOP_PERFORMER").isNull(), "N").otherwise(col("TOP_PERFORMER"))
+                                   )\
+                                   .withColumn("LOAD_TSTMP", current_timestamp())
         log.info(f"Data Frame : 'JNR_With_Top_Performer' is built....")
 
 
