@@ -66,7 +66,20 @@ def m_load_customer_sales_report():
                                     SQ_Shortcut_To_Products,
                                     on="PRODUCT_ID",
                                     how="left"
+                                )\
+                                .select(
+                                        FIL_Cancelled_Sales.SALE_ID,
+                                        FIL_Cancelled_Sales.CUSTOMER_ID,
+                                        FIL_Cancelled_Sales.PRODUCT_ID,
+                                        FIL_Cancelled_Sales.QUANTITY,
+                                        FIL_Cancelled_Sales.DISCOUNT,
+                                        FIL_Cancelled_Sales.SALE_DATE,
+                                        FIL_Cancelled_Sales.ORDER_STATUS,
+                                        SQ_Shortcut_To_Products.PRODUCT_NAME,
+                                        SQ_Shortcut_To_Products.CATEGORY,
+                                        SQ_Shortcut_To_Products.SELLING_PRICE 
                                 )
+        
         log.info(f"Data Frame : 'JNR_Sales_Products' is built....")
 
         # Processing Node : JNR_All_Data - Joins with customer data
@@ -75,7 +88,22 @@ def m_load_customer_sales_report():
                                 SQ_Shortcut_To_Customers,
                                 on="CUSTOMER_ID",
                                 how="left"
+                            )\
+                            .select(
+                                    JNR_Sales_Products.SALE_ID,
+                                    JNR_Sales_Products.CUSTOMER_ID,
+                                    JNR_Sales_Products.PRODUCT_ID,
+                                    JNR_Sales_Products.QUANTITY,
+                                    JNR_Sales_Products.DISCOUNT,
+                                    JNR_Sales_Products.SALE_DATE,
+                                    JNR_Sales_Products.ORDER_STATUS,
+                                    JNR_Sales_Products.PRODUCT_NAME,
+                                    JNR_Sales_Products.CATEGORY,
+                                    JNR_Sales_Products.SELLING_PRICE,
+                                    SQ_Shortcut_To_Customers.NAME,
+                                    SQ_Shortcut_To_Customers.CITY                                              
                             )
+                                 
         log.info(f"Data Frame : 'JNR_All_Data' is built....")
 
         # Processing Node : EXP_Calculate_Metrics - Calculates derived fields
@@ -98,7 +126,6 @@ def m_load_customer_sales_report():
                                                round(col("QUANTITY") * col("SELLING_PRICE") * 
                                                (1 - col("DISCOUNT")/100), 2))
         log.info(f"Data Frame : 'EXP_Calculate_Metrics' is built....")
-
              
         # Processing Node : JNR_With_Loyalty - Join loyalty tier back to main data
         rank_window = Window.orderBy(col("SALE_AMOUNT").desc())
@@ -117,33 +144,43 @@ def m_load_customer_sales_report():
                                 )
         log.info(f"Data Frame : 'JNR_With_Loyalty' is built....")
 
-        
-        # Processing Node : Top_Performer_df - Based on supplier performance presence
-        Top_Performer_df = SQ_Shortcut_To_Supplier_Performance\
-                            .filter(~(col("TOP_SELLING_PRODUCT") == "No Sales"))\
-                            .select(col("TOP_SELLING_PRODUCT"))\
-                            .withColumn("TOP_PERFORMER", lit("Y"))
-        log.info(f"Data Frame : 'Top_Performer_df' is built using supplier performance....")     
-         
-        
-        # Processing Node : JNR_With_Top_Performer -  Join top performer info with main data
+       # Processing Node: JNR_With_Top_Performer - Join top performer info with main data
         JNR_With_Top_Performer = JNR_With_Loyalty\
                                     .join(
-                                        Top_Performer_df,
-                                         on=JNR_With_Loyalty["PRODUCT_NAME"] == Top_Performer_df["TOP_SELLING_PRODUCT"],
+                                        SQ_Shortcut_To_Supplier_Performance.select(
+                                            col("TOP_SELLING_PRODUCT"),
+                                            lit("Y").alias("TOP_PERFORMER")
+                                        ),
+                                        JNR_With_Loyalty["PRODUCT_NAME"] == SQ_Shortcut_To_Supplier_Performance["TOP_SELLING_PRODUCT"],
                                         how="left"
                                     )\
-                                    .withColumn("TOP_PERFORMER", when(col("TOP_PERFORMER").isNull(), "N").otherwise(col("TOP_PERFORMER")))     
-        log.info(f"Data Frame : 'JNR_With_Top_Performer' is built....")           
+                                    .select(
+                                            JNR_With_Loyalty.DAY_DT,
+                                            JNR_With_Loyalty.CUSTOMER_ID,
+                                            JNR_With_Loyalty.NAME,
+                                            JNR_With_Loyalty.SALE_ID,
+                                            JNR_With_Loyalty.CITY,
+                                            JNR_With_Loyalty.PRODUCT_NAME,
+                                            JNR_With_Loyalty.CATEGORY,
+                                            JNR_With_Loyalty.SALE_DATE,
+                                            JNR_With_Loyalty.SALE_MONTH,
+                                            JNR_With_Loyalty.SALE_YEAR,
+                                            JNR_With_Loyalty.QUANTITY,
+                                            JNR_With_Loyalty.PRICE,
+                                            JNR_With_Loyalty.SALE_AMOUNT,
+                                            JNR_With_Loyalty.LOYALTY_TIER,
+                                            when(col("TOP_PERFORMER").isNull(), "N").otherwise(col("TOP_PERFORMER")).alias("TOP_PERFORMER"),
+                                            current_timestamp().alias("LOAD_TSTMP"),
+                                    )
+        log.info(f"Data Frame : 'JNR_With_Top_Performer' is built....")
 
 
         # Processing Node : Shortcut_To_CSR_Tgt - Final selection for target
         Shortcut_To_CSR_Tgt = JNR_With_Top_Performer\
-                                 .withColumn("LOAD_TSTMP", current_timestamp())\
-                                 .select(
+                                   .select(
                                         col("DAY_DT"),
                                         col("CUSTOMER_ID"),
-                                        col("NAME").alias("CUSTOMER_NAME"),
+                                        col("NAME"),
                                         col("SALE_ID"),
                                         col("CITY"),
                                         col("PRODUCT_NAME"),
@@ -159,6 +196,7 @@ def m_load_customer_sales_report():
                                         col("LOAD_TSTMP")
                                     )             
         log.info(f"Data Frame : 'Shortcut_To_CSR_Tgt' is built....")
+        Shortcut_To_CSR_Tgt.printSchema()
 
         # Validate and load data
         validator = DuplicateValidator()

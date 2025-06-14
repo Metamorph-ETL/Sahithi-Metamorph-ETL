@@ -3,7 +3,6 @@ from airflow.exceptions import AirflowException
 from utils import init_spark, load_to_postgres, DuplicateValidator, read_from_postgres
 import logging
 from pyspark.sql.functions import col, sum, current_date, round, when
-from pyspark.sql.window import Window
 
 log = logging.getLogger(__name__)
 
