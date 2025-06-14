@@ -98,9 +98,14 @@ def m_load_supplier_performance():
                                     .agg(
                                         sum("REVENUE").alias("agg_product_revenue"),
                                         sum("QUANTITY").alias("agg_stock_sold")
-                                    )
+                                   )
         log.info(f"Data Frame : 'AGG_TRANS_Product_Level' is built....")
-       
+
+        # Processing Node - AGG_TRANS_Product_Level - Aggregates 'valid_product' column based on stock sold > 0
+        AGG_TRANS_Product_Level = AGG_TRANS_Product_Level\
+                                    .withColumn("valid_product", when(col("agg_stock_sold") > 0, 1).otherwise(0))
+        log.info(f"Data Frame : 'AGG_TRANS_Product_Level' is built....")
+            
         # Processing Node : AGG_TRANS_Supplier_Level - Aggregates data at the supplier level
         AGG_TRANS_Supplier_Level = AGG_TRANS_Product_Level\
                                     .groupBy(
@@ -108,7 +113,7 @@ def m_load_supplier_performance():
                                     )\
                                     .agg(
                                         sum("agg_product_revenue").alias("agg_total_revenue"),
-                                        countDistinct("PRODUCT_ID").alias("agg_total_products_sold"),
+                                        sum("valid_product").alias("agg_total_products_sold"),
                                         sum("agg_stock_sold").alias("agg_total_stock_sold")
                                     )
         log.info(f"Data Frame : 'AGG_TRANS_Supplier_Level' is built....")
@@ -137,7 +142,6 @@ def m_load_supplier_performance():
                                     .select(
                                         SQ_Shortcut_To_Suppliers.SUPPLIER_ID,
                                         SQ_Shortcut_To_Suppliers.SUPPLIER_NAME,
-                                        
                                         AGG_TRANS_Supplier_Level.agg_total_revenue,
                                         AGG_TRANS_Supplier_Level.agg_total_products_sold,
                                         AGG_TRANS_Supplier_Level.agg_total_stock_sold

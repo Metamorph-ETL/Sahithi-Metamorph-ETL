@@ -3,7 +3,6 @@ from airflow.exceptions import AirflowException
 from utils import init_spark, load_to_postgres, DuplicateValidator, read_from_postgres
 import logging
 from pyspark.sql.functions import col, sum, current_date, round, when
-from pyspark.sql.window import Window
 
 log = logging.getLogger(__name__)
 
@@ -14,15 +13,15 @@ def m_load_product_performance():
         spark = init_spark()       
 
         # Processing Node : SQ_Shortcut_To_sales - Reads data from 'raw.sales' table
-        SQ_Shortcut_To_sales = read_from_postgres(spark, "raw.sales")
-        SQ_Shortcut_To_sales = SQ_Shortcut_To_sales\
+        SQ_Shortcut_To_Sales = read_from_postgres(spark, "raw.sales")
+        SQ_Shortcut_To_Sales = SQ_Shortcut_To_Sales\
                                 .select(
                                     col("ORDER_STATUS"),
                                     col("PRODUCT_ID"),
                                     col("QUANTITY"),
                                     col("DISCOUNT")                                 
                                 )        
-        log.info(f"Data Frame : 'SQ_Shortcut_To_sales' is built....")
+        log.info(f"Data Frame : 'SQ_Shortcut_To_Sales' is built....")
 
         # Processing Node : SQ_Shortcut_To_Products - Reads data from 'raw.products' table
         SQ_Shortcut_To_Products = read_from_postgres(spark, "raw.products")
@@ -36,13 +35,13 @@ def m_load_product_performance():
                                         col("STOCK_QUANTITY"),
                                         col("REORDER_LEVEL")                           
                                     )
-        log.info(f"Data Frame : 'SQ_Shortcut_To_products' is built....")        
+        log.info(f"Data Frame : 'SQ_Shortcut_To_Products' is built....")        
         
        
         # Processing Node : FIL_Cancelled_Sales - Filters out cancelled orders
-        FIL_Cancelled_Sales = SQ_Shortcut_To_sales\
+        FIL_Cancelled_Sales = SQ_Shortcut_To_Sales\
                                 .filter(
-                                    SQ_Shortcut_To_sales.ORDER_STATUS != "CANCELLED"
+                                    SQ_Shortcut_To_Sales.ORDER_STATUS != "CANCELLED"
                                 )
         log.info(f"Data Frame : 'FIL_Cancelled_Sales' is built....")
 
