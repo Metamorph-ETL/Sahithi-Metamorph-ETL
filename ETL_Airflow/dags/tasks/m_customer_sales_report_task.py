@@ -144,14 +144,18 @@ def m_load_customer_sales_report():
                                 )
         log.info(f"Data Frame : 'JNR_With_Loyalty' is built....")
 
-       # Processing Node: JNR_With_Top_Performer - Join top performer info with main data
+       # Processing Node: SQ_Shortcut_To_Top_Selling_Products - Select relevant top performers
+        SQ_Shortcut_To_Top_Selling_Products = SQ_Shortcut_To_Supplier_Performance\
+                                                .select(
+                                                    col("TOP_SELLING_PRODUCT"),
+                                                    lit("Y").alias("TOP_PERFORMER")
+                                                )
+
+        # Processing Node: JNR_With_Top_Performer - Join top performer info with main data
         JNR_With_Top_Performer = JNR_With_Loyalty\
                                     .join(
-                                        SQ_Shortcut_To_Supplier_Performance.select(
-                                            col("TOP_SELLING_PRODUCT"),
-                                            lit("Y").alias("TOP_PERFORMER")
-                                        ),
-                                        JNR_With_Loyalty["PRODUCT_NAME"] == SQ_Shortcut_To_Supplier_Performance["TOP_SELLING_PRODUCT"],
+                                        SQ_Shortcut_To_Top_Selling_Products,
+                                        JNR_With_Loyalty.PRODUCT_NAME == SQ_Shortcut_To_Top_Selling_Products.TOP_SELLING_PRODUCT,
                                         how="left"
                                     )\
                                     .select(
@@ -199,7 +203,7 @@ def m_load_customer_sales_report():
                                         col("LOAD_TSTMP")
                                     )             
         log.info(f"Data Frame : 'Shortcut_To_CSR_Tgt' is built....")
-        Shortcut_To_CSR_Tgt.printSchema()
+        
 
         # Validate and load data
         validator = DuplicateValidator()

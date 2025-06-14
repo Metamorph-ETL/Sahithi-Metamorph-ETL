@@ -103,7 +103,7 @@ def m_load_supplier_performance():
 
         # Processing Node - AGG_TRANS_Product_Level - Aggregates 'valid_product' column based on stock sold > 0
         AGG_TRANS_Product_Level = AGG_TRANS_Product_Level\
-            .withColumn("valid_product", when(col("agg_stock_sold") > 0, 1).otherwise(0))
+                                    .withColumn("valid_product", when(col("agg_stock_sold") > 0, 1).otherwise(0))
         log.info(f"Data Frame : 'AGG_TRANS_Product_Level' is built....")
             
         # Processing Node : AGG_TRANS_Supplier_Level - Aggregates data at the supplier level
