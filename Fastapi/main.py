@@ -82,7 +82,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @app.get("/v1/products")
 def get_products():
-    blob = get_latest_file_from_gcs("product_new") 
+    blob = get_latest_file_from_gcs("product") 
     df = read_csv_from_gcs(blob)
 
     if "cost_price" not in df.columns:
