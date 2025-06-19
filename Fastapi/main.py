@@ -82,30 +82,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @app.get("/v1/products")
 def get_products():
-    client = get_gcs_client()
-    bucket = client.get_bucket(GCS_BUCKET_NAME)
-    today_str = "20250322"  
-
-   
-    new_path = f"{today_str}/product_new_{today_str}.csv"
-    old_path = f"{today_str}/product_{today_str}.csv"
-
-    new_blob = bucket.blob(new_path)
-    old_blob = bucket.blob(old_path)
-
-       
-    if new_blob.exists() and old_blob.exists():
-        if new_blob.download_as_string() != old_blob.download_as_string():
-            blob = new_blob  
-        else:
-            blob = old_blob  
-    elif new_blob.exists():
-        blob = new_blob
-    elif old_blob.exists():
-        blob = old_blob
-    else:
-        raise HTTPException(status_code=404, detail="No product file found.")
-
+    blob = get_latest_file_from_gcs("product") 
     df = read_csv_from_gcs(blob)
     
 
