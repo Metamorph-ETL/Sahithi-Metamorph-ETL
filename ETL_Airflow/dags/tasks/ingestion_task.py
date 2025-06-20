@@ -249,7 +249,7 @@ def m_ingest_data_into_sales():
         today_date = "20250322"
         
         # Create Spark DataFrame from API data
-        csv_file_path = f"gs://meta-morph/{today_date}/sales_{today_date}.csv" 
+        csv_file_path = f"gs://meta-morph-flow/{today_date}/sales_{today_date}.csv" 
 
         df = spark.read.csv(
             csv_file_path,
