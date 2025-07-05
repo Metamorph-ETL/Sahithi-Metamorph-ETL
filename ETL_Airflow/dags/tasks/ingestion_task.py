@@ -3,6 +3,7 @@ from airflow.exceptions import AirflowException
 from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator
 import logging
 from pyspark.sql.functions import col,current_date
+from datetime import datetime
 
 
 
@@ -246,7 +247,7 @@ def m_ingest_data_into_sales():
 
         # API Client to fetch data
         log.info("Fetching sales data from GCS bucket...")            
-        today_date = "20250322"
+        today_date = datetime.today().strftime("%Y%m%d")
         
         # Create Spark DataFrame from API data
         csv_file_path = f"gs://meta-morph-flow/{today_date}/sales_{today_date}.csv" 
@@ -257,7 +258,9 @@ def m_ingest_data_into_sales():
             sep=",",
             inferSchema=True
         )
-
+        df = spark.read.option("header", True).csv(csv_file_path)
+        
+        log.info("Incoming columns: %s", df.columns)
         # Rename columns to uppercase
         sales_df = df \
                     .withColumnRenamed("sale_id", "SALE_ID")\
