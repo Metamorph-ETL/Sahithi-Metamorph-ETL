@@ -1,5 +1,5 @@
 import io
-from datetime import  timedelta
+from datetime import  timedelta,datetime
 from google.cloud import storage
 from google.oauth2 import service_account
 import pandas as pd
@@ -45,8 +45,7 @@ def get_latest_file_from_gcs(file_keyword: str):
     
         client = get_gcs_client()
         bucket = client.get_bucket(GCS_BUCKET_NAME)
-        #today_str = datetime.today().strftime("%Y%m%d")
-        today_str = "20250322"
+        today_str = datetime.today().strftime("%Y%m%d")
         blob_path = f"{today_str}/{file_keyword}_{today_str}.csv"
         blob = bucket.blob(blob_path)
 

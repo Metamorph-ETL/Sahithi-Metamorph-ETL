@@ -258,9 +258,7 @@ def m_ingest_data_into_sales():
             sep=",",
             inferSchema=True
         )
-        df = spark.read.option("header", True).csv(csv_file_path)
-        
-        log.info("Incoming columns: %s", df.columns)
+     
         # Rename columns to uppercase
         sales_df = df \
                     .withColumnRenamed("sale_id", "SALE_ID")\
