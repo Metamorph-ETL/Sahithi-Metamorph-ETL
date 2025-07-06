@@ -83,19 +83,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 def get_products():
     blob = get_latest_file_from_gcs("product") 
     df = read_csv_from_gcs(blob)
-    
-
-    if "cost_price" not in df.columns:
-        raise HTTPException(status_code=400, detail="Missing required column: cost_price")
-
     return {"status": 200, "data": df.to_dict(orient="records")}
   
-
 @app.get("/v1/customers")
 def get_customers(current_user: User = Depends(get_current_active_user)):
     blob = get_latest_file_from_gcs("customer")
     df = read_csv_from_gcs(blob)
-    df.drop(columns=["loyalty_tier"], errors="ignore", inplace=True)
     return {"status": 200, "data": df.to_dict(orient="records")}
 
 @app.get("/v1/suppliers")

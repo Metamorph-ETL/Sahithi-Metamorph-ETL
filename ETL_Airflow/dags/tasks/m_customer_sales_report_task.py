@@ -14,7 +14,7 @@ def m_load_customer_sales_report():
         spark = init_spark()       
 
         # Processing Node : SQ_Shortcut_To_sales - Reads data from 'raw.sales' table
-        SQ_Shortcut_To_Sales = read_from_postgres(spark, "raw.sales")
+        SQ_Shortcut_To_Sales = read_from_postgres(spark, "raw.sales_pre")
         SQ_Shortcut_To_Sales = SQ_Shortcut_To_Sales\
                                 .select(
                                     col("SALE_ID"),
@@ -28,7 +28,7 @@ def m_load_customer_sales_report():
         log.info(f"Data Frame : 'SQ_Shortcut_To_Sales' is built....")
 
         # Processing Node : SQ_Shortcut_To_Products - Reads data from 'raw.products' table
-        SQ_Shortcut_To_Products = read_from_postgres(spark, "raw.products")
+        SQ_Shortcut_To_Products = read_from_postgres(spark, "raw.products_pre")
         SQ_Shortcut_To_Products = SQ_Shortcut_To_Products\
                                     .select(                                      
                                         col("PRODUCT_ID"),
@@ -39,7 +39,7 @@ def m_load_customer_sales_report():
         log.info(f"Data Frame : 'SQ_Shortcut_To_Products' is built....")
 
         # Processing Node : SQ_Shortcut_To_Customers - Reads data from 'raw.customers' table
-        SQ_Shortcut_To_Customers = read_from_postgres(spark, "raw.customers")
+        SQ_Shortcut_To_Customers = read_from_postgres(spark, "raw.customers_pre")
         SQ_Shortcut_To_Customers = SQ_Shortcut_To_Customers\
                                     .select(
                                         col("CUSTOMER_ID"),
@@ -172,7 +172,8 @@ def m_load_customer_sales_report():
                                             JNR_With_Loyalty.QUANTITY,
                                             JNR_With_Loyalty.PRICE,
                                             JNR_With_Loyalty.SALE_AMOUNT,
-                                            JNR_With_Loyalty.LOYALTY_TIER
+                                            JNR_With_Loyalty.LOYALTY_TIER,
+                                            SQ_Shortcut_To_Top_Selling_Products.TOP_PERFORMER
                                    )\
                                     .withColumn(
                                             "TOP_PERFORMER",

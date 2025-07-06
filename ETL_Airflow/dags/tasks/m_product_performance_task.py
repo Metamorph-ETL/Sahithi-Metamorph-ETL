@@ -13,7 +13,7 @@ def m_load_product_performance():
         spark = init_spark()       
 
         # Processing Node : SQ_Shortcut_To_sales - Reads data from 'raw.sales' table
-        SQ_Shortcut_To_Sales = read_from_postgres(spark, "raw.sales")
+        SQ_Shortcut_To_Sales = read_from_postgres(spark, "raw.sales_pre")
         SQ_Shortcut_To_Sales = SQ_Shortcut_To_Sales\
                                 .select(
                                     col("ORDER_STATUS"),
@@ -24,7 +24,7 @@ def m_load_product_performance():
         log.info(f"Data Frame : 'SQ_Shortcut_To_Sales' is built....")
 
         # Processing Node : SQ_Shortcut_To_Products - Reads data from 'raw.products' table
-        SQ_Shortcut_To_Products = read_from_postgres(spark, "raw.products")
+        SQ_Shortcut_To_Products = read_from_postgres(spark, "raw.products_pre")
         SQ_Shortcut_To_Products = SQ_Shortcut_To_Products \
                                     .select(                                      
                                         col("PRODUCT_ID"),
