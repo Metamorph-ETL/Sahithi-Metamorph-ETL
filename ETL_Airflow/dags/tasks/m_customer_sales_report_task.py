@@ -13,7 +13,7 @@ def m_load_customer_sales_report():
         # Initialize Spark session
         spark = init_spark()       
 
-        # Processing Node : SQ_Shortcut_To_sales - Reads data from 'raw.sales' table
+        # Processing Node : SQ_Shortcut_To_sales - Reads data from 'raw.sales_pre' table
         SQ_Shortcut_To_Sales = read_from_postgres(spark, "raw.sales_pre")
         SQ_Shortcut_To_Sales = SQ_Shortcut_To_Sales\
                                 .select(
@@ -27,7 +27,7 @@ def m_load_customer_sales_report():
                                 )        
         log.info(f"Data Frame : 'SQ_Shortcut_To_Sales' is built....")
 
-        # Processing Node : SQ_Shortcut_To_Products - Reads data from 'raw.products' table
+        # Processing Node : SQ_Shortcut_To_Products - Reads data from 'raw.products_pre' table
         SQ_Shortcut_To_Products = read_from_postgres(spark, "raw.products_pre")
         SQ_Shortcut_To_Products = SQ_Shortcut_To_Products\
                                     .select(                                      
@@ -38,7 +38,7 @@ def m_load_customer_sales_report():
                                     )
         log.info(f"Data Frame : 'SQ_Shortcut_To_Products' is built....")
 
-        # Processing Node : SQ_Shortcut_To_Customers - Reads data from 'raw.customers' table
+        # Processing Node : SQ_Shortcut_To_Customers - Reads data from 'raw.customers_pre' table
         SQ_Shortcut_To_Customers = read_from_postgres(spark, "raw.customers_pre")
         SQ_Shortcut_To_Customers = SQ_Shortcut_To_Customers\
                                     .select(
@@ -50,7 +50,14 @@ def m_load_customer_sales_report():
 
         # Processing Node : SQ_Shortcut_To_Supplier_Performance - Read from 'legacy.supplier_performance'
         SQ_Shortcut_To_Supplier_Performance = read_from_postgres(spark, "legacy.supplier_performance")\
-                                                .select("TOP_SELLING_PRODUCT")
+                                                .select(
+                                                    col("TOP_SELLING_PRODUCT"), 
+                                                    col("DAY_DT")
+                                                )\
+                                                .filter(
+                                                    col("DAY_DT") == current_date()
+                                                )
+
         log.info(f"Data Frame : 'SQ_Shortcut_To_Supplier_Performance' is built....")
 
         # Processing Node : FIL_Cancelled_Sales - Filters out cancelled orders
@@ -161,7 +168,7 @@ def m_load_customer_sales_report():
                                     .select(
                                             JNR_With_Loyalty.DAY_DT,
                                             JNR_With_Loyalty.CUSTOMER_ID,
-                                            JNR_With_Loyalty.NAME,
+                                            JNR_With_Loyalty.NAME.alias("CUSTOMER_NAME"),
                                             JNR_With_Loyalty.SALE_ID,
                                             JNR_With_Loyalty.CITY,
                                             JNR_With_Loyalty.PRODUCT_NAME,
@@ -188,7 +195,7 @@ def m_load_customer_sales_report():
                                    .select(
                                         col("DAY_DT"),
                                         col("CUSTOMER_ID"),
-                                        col("NAME"),
+                                        col("CUSTOMER_NAME"),
                                         col("SALE_ID"),
                                         col("CITY"),
                                         col("PRODUCT_NAME"),
