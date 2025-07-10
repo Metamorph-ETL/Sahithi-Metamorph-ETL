@@ -5,8 +5,6 @@ import logging
 from pyspark.sql.functions import col,current_date
 from datetime import datetime
 
-
-
 log = logging.getLogger(__name__)
 
 @task
@@ -28,17 +26,14 @@ def m_ingest_data_into_suppliers():
         log.info(f"Received {len(data)} supplier records.")
         
         # Create Spark DataFrame from API data
-        df = spark.createDataFrame(data)
-        cols = [c.strip().upper().replace(" ", "_") for c in df.columns]
-        suppliers_df   = df.toDF(*cols)
+        suppliers_df = spark.createDataFrame(response[data])        
               
         suppliers_df_tgt = suppliers_df\
-                            .select(
-                                col("SUPPLIER_ID"),
-                                col("SUPPLIER_NAME"),
-                                col("CONTACT_DETAILS"),
-                                col("REGION")
-                            )      
+               .withColumnRenamed(suppliers_df.columns[0], "SUPPLIER_ID")\
+               .withColumnRenamed(suppliers_df.columns[1], "SUPPLIER_NAME")\
+               .withColumnRenamed(suppliers_df.columns[2], "CONTACT_DETAILS")\
+               .withColumnRenamed(suppliers_df.columns[3], "REGION")    
+        
         suppliers_legacy_df = suppliers_df_tgt\
                                .withColumn("DAY_DT", current_date())
 
@@ -53,17 +48,13 @@ def m_ingest_data_into_suppliers():
 
         # Validate no duplicates based on SUPPLIER_ID        
         validator = DuplicateValidator()
-        validator.validate_no_duplicates(suppliers_df_tgt, key_columns=["SUPPLIER_ID"])
-       
+        validator.validate_no_duplicates(suppliers_df_tgt, key_columns=["SUPPLIER_ID"])   
               
-
-
         # Load the cleaned data to PostgreSQL        
         load_to_postgres(suppliers_df_tgt, "raw.suppliers_pre", "overwrite")
 
-        load_to_postgres(suppliers_legacy_df_tgt, "legacy.suppliers", "append")
-        
-       
+        load_to_postgres(suppliers_legacy_df_tgt, "legacy.suppliers", "append")      
+    
         return "Suppliers ETL process completed successfully."
 
     except Exception as e:
@@ -72,8 +63,7 @@ def m_ingest_data_into_suppliers():
 
     finally:
             spark.stop()
-            
-       
+                 
 @task
 def m_ingest_data_into_products():
     try:
@@ -93,21 +83,18 @@ def m_ingest_data_into_products():
         log.info(f"Received {len(data)} product records.")
 
         # Create DataFrame and rename columns
-        df = spark.createDataFrame(data)
-        cols = [c.strip().upper().replace(" ", "_") for c in df.columns]
-        products_df   = df.toDF(*cols)        
+        products_df = spark.createDataFrame(response[data])         
 
         products_df_tgt = products_df\
-                            .select(                       
-                                col("PRODUCT_ID"), 
-                                col("PRODUCT_NAME"),
-                                col("CATEGORY"),
-                                col("SELLING_PRICE"),
-                                col("COST_PRICE"),
-                                col("STOCK_QUANTITY"),
-                                col("REORDER_LEVEL"),
-                                col("SUPPLIER_ID"),                               
-                            )
+                    .withColumnRenamed(products_df.columns[0], "PRODUCT_ID")\
+                    .withColumnRenamed(products_df.columns[1], "PRODUCT_NAME")\
+                    .withColumnRenamed(products_df.columns[2], "CATEGORY")\
+                    .withColumnRenamed(products_df.columns[3], "SELLING_PRICE")\
+                    .withColumnRenamed(products_df.columns[4], "COST_PRICE")\
+                    .withColumnRenamed(products_df.columns[5], "STOCK_QUANTITY")\
+                    .withColumnRenamed(products_df.columns[6], "REORDER_LEVEL")\
+                    .withColumnRenamed(products_df.columns[7], "SUPPLIER_ID")
+        
         products_legacy_df = products_df_tgt\
                                .withColumn("DAY_DT", current_date())
         
@@ -167,18 +154,16 @@ def m_ingest_data_into_customers():
         log.info(f"Received {len(data)} customer records.")
 
         # Create DataFrame and rename columns
-        df = spark.createDataFrame(data)
-        cols = [c.strip().upper().replace(" ", "_") for c in df.columns]
-        customers_df = df.toDF(*cols)
+        customers_df = spark.createDataFrame(response[data])
+        
 
         customers_df_tgt = customers_df\
-                            .select(
-                                col("CUSTOMER_ID"),
-                                col("NAME"),
-                                col("CITY"),
-                                col("EMAIL"),
-                                col("PHONE_NUMBER")
-                            )
+                    .withColumnRenamed(customers_df.columns[0], "CUSTOMER_ID")\
+                    .withColumnRenamed(customers_df.columns[1], "NAME")\
+                    .withColumnRenamed(customers_df.columns[2], "CITY")\
+                    .withColumnRenamed(customers_df.columns[3], "EMAIL")\
+                    .withColumnRenamed(customers_df.columns[4], "PHONE_NUMBER")
+        
         customers_legacy_df = customers_df_tgt\
                                .withColumn("DAY_DT", current_date())
         
@@ -230,27 +215,26 @@ def m_ingest_data_into_sales():
         # Create Spark DataFrame from API data
         csv_file_path = f"gs://meta-morph-flow/{today_date}/sales_{today_date}.csv" 
 
-        df = spark.read.csv(
+        sales_df = spark.read.csv(
             csv_file_path,
             header=True,
             sep=",",
             inferSchema=True
         )
-        cols = [c.strip().upper().replace(" ", "_") for c in df.columns]
-        sales_df = df.toDF(*cols)
+        
          
+           # Rename columns by position (sir’s logic)
         sales_df_tgt = sales_df\
-                        .select(
-                            col("SALE_ID"),
-                            col("CUSTOMER_ID"),
-                            col("PRODUCT_ID"),
-                            col("SALE_DATE"),
-                            col("QUANTITY"),
-                            col("DISCOUNT"),
-                            col("SHIPPING_COST"),
-                            col("ORDER_STATUS"),
-                            col("PAYMENT_MODE")
-                        )   
+                .withColumnRenamed(sales_df.columns[0], "SALE_ID")\
+               .withColumnRenamed(sales_df.columns[1], "CUSTOMER_ID")\
+               .withColumnRenamed(sales_df.columns[2], "PRODUCT_ID")\
+               .withColumnRenamed(sales_df.columns[3], "SALE_DATE")\
+               .withColumnRenamed(sales_df.columns[4], "QUANTITY")\
+               .withColumnRenamed(sales_df.columns[5], "DISCOUNT")\
+               .withColumnRenamed(sales_df.columns[6], "SHIPPING_COST")\
+               .withColumnRenamed(sales_df.columns[7], "ORDER_STATUS")\
+               .withColumnRenamed(sales_df.columns[8], "PAYMENT_MODE")
+
         
         sales_legacy_df = sales_df_tgt\
                                .withColumn("DAY_DT", current_date())
