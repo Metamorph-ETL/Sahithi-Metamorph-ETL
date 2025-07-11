@@ -1,6 +1,6 @@
 from airflow.decorators import dag
 from datetime import  timedelta
-from tasks.adhoc.adhoc_load_sales_20250707_file import  m_ingest_data_into_sales , m_load_product_performance , m_load_supplier_performance
+from tasks.adhoc.adhoc_drop_duplicates_legacy import  m_adhoc_load_supplier
 import pendulum
 
 IST = pendulum.timezone("Asia/Kolkata")
@@ -20,14 +20,13 @@ default_args = {
 
 
 def etl_process():
-    sales_task = m_ingest_data_into_sales()
-    supplier_performance_task = m_load_supplier_performance()
-    product_performance_task = m_load_product_performance()
+   
+     m_adhoc_load_supplier()
     
    
 
     # Set dependencies inside the DAG function
-    sales_task  >> [supplier_performance_task, product_performance_task] 
+    # sales_task  >> [supplier_performance_task, product_performance_task] 
   
 
 dag_instance = etl_process()

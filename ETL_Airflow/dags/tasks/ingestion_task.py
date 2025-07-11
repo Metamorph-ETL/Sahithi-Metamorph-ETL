@@ -26,7 +26,7 @@ def m_ingest_data_into_suppliers():
         log.info(f"Received {len(data)} supplier records.")
         
         # Create Spark DataFrame from API data
-        suppliers_df = spark.createDataFrame(response[data])        
+        suppliers_df = spark.createDataFrame(data)        
               
         suppliers_df_tgt = suppliers_df\
                .withColumnRenamed(suppliers_df.columns[0], "SUPPLIER_ID")\
@@ -83,7 +83,7 @@ def m_ingest_data_into_products():
         log.info(f"Received {len(data)} product records.")
 
         # Create DataFrame and rename columns
-        products_df = spark.createDataFrame(response[data])         
+        products_df = spark.createDataFrame(data)         
 
         products_df_tgt = products_df\
                     .withColumnRenamed(products_df.columns[0], "PRODUCT_ID")\
@@ -154,7 +154,7 @@ def m_ingest_data_into_customers():
         log.info(f"Received {len(data)} customer records.")
 
         # Create DataFrame and rename columns
-        customers_df = spark.createDataFrame(response[data])
+        customers_df = spark.createDataFrame(data)
         
 
         customers_df_tgt = customers_df\

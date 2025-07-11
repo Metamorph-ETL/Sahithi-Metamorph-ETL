@@ -8,16 +8,14 @@ import pendulum
 
 IST = pendulum.timezone("Asia/Kolkata")
 
-default_args = {
-    "owner": "airflow",
-    "retries": 3,                             
-    "retry_delay": timedelta(minutes=5),       
-}
+# default_args = {
+#     "owner": "airflow",
+#     "retries": 3,                             
+#     "retry_delay": timedelta(minutes=5),       
+# }
 
 @dag(
-    dag_id="ingestion_data_pipeline",
-    default_args=default_args,   
-    schedule_interval="30 11 * * *",      
+    dag_id="ingestion_data_pipeline", 
     start_date=datetime(2025, 7, 6, tzinfo=IST),
     catchup=False,
     tags=["METAMORPH"]
