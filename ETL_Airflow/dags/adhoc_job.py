@@ -9,7 +9,6 @@ IST = pendulum.timezone("Asia/Kolkata")
 
 @dag(
     dag_id="adhoc_job",
-    # default_args=default_args,   
     catchup=False,
     tags=["METAMORPH","ADHOC"]
 )
