@@ -1,19 +1,19 @@
 from airflow.decorators import dag
 from datetime import  timedelta
-from tasks.adhoc.adhoc_drop_duplicates_legacy import  m_adhoc_load_supplier
+from tasks.adhoc.adhoc_column_mismatch_20250711_file import  m_adhoc_into_customers,m_adhoc_into_products
 import pendulum
 
 IST = pendulum.timezone("Asia/Kolkata")
 
-default_args = {
-    "owner": "airflow",
-    "retries": 3,                             
-    "retry_delay": timedelta(minutes=5),       
-}
+# default_args = {
+#     "owner": "airflow",
+#     "retries": 3,                             
+#     "retry_delay": timedelta(minutes=5),       
+# }
 
 @dag(
     dag_id="adhoc_job",
-    default_args=default_args,   
+    # default_args=default_args,   
     catchup=False,
     tags=["METAMORPH","ADHOC"]
 )
@@ -21,7 +21,9 @@ default_args = {
 
 def etl_process():
    
-     m_adhoc_load_supplier()
+   m_adhoc_into_customers()
+   m_adhoc_into_products()
+     
     
    
 

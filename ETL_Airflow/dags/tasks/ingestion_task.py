@@ -4,6 +4,7 @@ from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator
 import logging
 from pyspark.sql.functions import col,current_date
 from datetime import datetime
+from pyspark.sql import Row
 
 log = logging.getLogger(__name__)
 
@@ -24,9 +25,10 @@ def m_ingest_data_into_suppliers():
             raise AirflowException("No supplier data received or missing 'data' key in response.")
         
         log.info(f"Received {len(data)} supplier records.")
+        rows = [Row(**x) for x in response["data"]]
         
         # Create Spark DataFrame from API data
-        suppliers_df = spark.createDataFrame(response[data])        
+        suppliers_df = spark.createDataFrame(rows)        
               
         suppliers_df_tgt = suppliers_df\
                .withColumnRenamed(suppliers_df.columns[0], "SUPPLIER_ID")\
@@ -81,9 +83,10 @@ def m_ingest_data_into_products():
             raise AirflowException("No product data received or missing 'data' key in response.")
 
         log.info(f"Received {len(data)} product records.")
+        rows = [Row(**x) for x in response["data"]]
 
         # Create DataFrame and rename columns
-        products_df = spark.createDataFrame(response[data])         
+        products_df = spark.createDataFrame(rows)         
 
         products_df_tgt = products_df\
                     .withColumnRenamed(products_df.columns[0], "PRODUCT_ID")\
@@ -152,18 +155,18 @@ def m_ingest_data_into_customers():
             raise AirflowException("No customer data received or missing 'data' key in response.")
 
         log.info(f"Received {len(data)} customer records.")
+        rows = [Row(**x) for x in response["data"]]
 
         # Create DataFrame and rename columns
-        customers_df = spark.createDataFrame(response[data])
+        customers_df = spark.createDataFrame(rows)
         
 
         customers_df_tgt = customers_df\
-                .withColumnRenamed(customers_df.columns[0], "CUSTOMER_ID")\
-                .withColumnRenamed(customers_df.columns[1], "NAME")\
-                .withColumnRenamed(customers_df.columns[2], "CITY")\
-                .withColumnRenamed(customers_df.columns[3], "EMAIL")\
-                .withColumnRenamed(customers_df.columns[4], "PHONE_NUMBER")
-        
+                    .withColumnRenamed(customers_df.columns[0], "CUSTOMER_ID")\
+                    .withColumnRenamed(customers_df.columns[1], "NAME")\
+                    .withColumnRenamed(customers_df.columns[2], "CITY")\
+                    .withColumnRenamed(customers_df.columns[3], "EMAIL")\
+                    .withColumnRenamed(customers_df.columns[4], "PHONE_NUMBER")
         
         customers_legacy_df = customers_df_tgt\
                                .withColumn("DAY_DT", current_date())
