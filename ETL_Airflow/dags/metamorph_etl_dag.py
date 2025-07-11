@@ -11,13 +11,12 @@ IST = pendulum.timezone("Asia/Kolkata")
 default_args = {
     "owner": "airflow",
     "retries": 3,                             
-    "retry_delay": timedelta(minutes=5),       
+    "retry_delay": timedelta(minutes=2),       
 }
 
 @dag(
     dag_id="ingestion_data_pipeline",
-    default_args=default_args,   
-    schedule_interval="30 11 * * *",      
+    default_args= default_args,
     start_date=datetime(2025, 7, 6, tzinfo=IST),
     catchup=False,
     tags=["METAMORPH"]
