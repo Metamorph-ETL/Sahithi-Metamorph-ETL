@@ -158,11 +158,11 @@ def m_ingest_data_into_customers():
         
 
         customers_df_tgt = customers_df\
-                .withColumnRenamed("customer_id", "CUSTOMER_ID")\
-                .withColumnRenamed("name", "NAME")\
-                .withColumnRenamed("city", "CITY")\
-                .withColumnRenamed("email", "EMAIL")\
-                .withColumnRenamed("phone_number", "PHONE_NUMBER")
+                .withColumnRenamed(customers_df.columns[0], "CUSTOMER_ID")\
+                .withColumnRenamed(customers_df.columns[1], "NAME")\
+                .withColumnRenamed(customers_df.columns[2], "CITY")\
+                .withColumnRenamed(customers_df.columns[3], "EMAIL")\
+                .withColumnRenamed(customers_df.columns[4], "PHONE_NUMBER")
         
         
         customers_legacy_df = customers_df_tgt\
