@@ -15,15 +15,10 @@ def m_adhoc_load_supplier():
         spark = init_spark()       
 
         # Processing Node : SQ_Shortcut_To_Suppliers - Reads data from 'raw.suppliers_pre' table
-        df = read_from_postgres(spark, "legacy.supplier_performance")
-        log.info(df.count())
-        drop_df = df.dropDuplicates()
-        log.info(drop_df.count())
-       
+        df = read_from_postgres(spark, "dev_legacy.sales")
+
         
-        
-      
-        # load_to_postgres(Shortcut_To_Supplier_Performance_Tgt, "legacy.supplier_performance", "append")   
+        load_to_postgres(df, "legacy.sales", "overwrite")   
 
         return "Supplier Performance task finished."
 
