@@ -17,7 +17,6 @@ default_args = {
 @dag(
     dag_id="ingestion_data_pipeline",
     default_args= default_args,
-    start_date=datetime(2025, 7, 6, tzinfo=IST),
     catchup=False,
     tags=["METAMORPH"]
 )
@@ -34,7 +33,7 @@ def etl_process():
    
 
     # Set dependencies inside the DAG function
-    [supplier_task, product_task, customer_task, sales_task]  >> supplier_performance_task >>  product_performance_task >> customer_sales_report_task
+    [supplier_task, product_task, customer_task] >> sales_task  >> supplier_performance_task >>  product_performance_task >> customer_sales_report_task
   
 
 dag_instance = etl_process()
