@@ -24,8 +24,8 @@ default_args = {
 
 
 def etl_process():
-    # env  = os.getenv('ENV','dev')
-    env = 'prod'
+    env  = os.getenv('ENV','dev')
+    
     
     supplier_task = m_ingest_data_into_suppliers(env)
     product_task = m_ingest_data_into_products(env)
