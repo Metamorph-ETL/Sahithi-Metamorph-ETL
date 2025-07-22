@@ -130,7 +130,7 @@ def m_load_product_performance():
         validator = DuplicateValidator()
         validator.validate_no_duplicates(Shortcut_To_Product_Performance_Tgt, key_columns=["PRODUCT_ID", "DAY_DT"]) 
 
-        load_to_postgres(Shortcut_To_Product_Performance_Tgt, "dev_legacy.product_performance", "overwrite")   
+        load_to_postgres(Shortcut_To_Product_Performance_Tgt, "legacy.product_performance", "append")   
 
         return "Product Performance task finished."         
     
