@@ -36,16 +36,14 @@ def m_load_product_performance():
                                         col("REORDER_LEVEL")                           
                                     )
         log.info(f"Data Frame : 'SQ_Shortcut_To_Products' is built....")        
-        
-       
+      
         # Processing Node : FIL_Cancelled_Sales - Filters out cancelled orders
         FIL_Cancelled_Sales = SQ_Shortcut_To_Sales\
                                 .filter(
-                                    SQ_Shortcut_To_Sales.ORDER_STATUS != "CANCELLED"
+                                    SQ_Shortcut_To_Sales.ORDER_STATUS != "Cancelled"
                                 )
         log.info(f"Data Frame : 'FIL_Cancelled_Sales' is built....")
-
-         
+                
         # Processing Node : JNR_Sales_Products - Joins sales data with product data on PRODUCT_ID
         JNR_Sales_Products = SQ_Shortcut_To_Products\
                                 .join( 
@@ -64,13 +62,13 @@ def m_load_product_performance():
                                     FIL_Cancelled_Sales.QUANTITY,
                                     FIL_Cancelled_Sales.DISCOUNT
                                 )       
-        log.info(f"Data Frame : 'JNR_Sales_Products' is built....")
+        log.info(f"Data Frame : 'JNR_Sales_Products' is built....")      
 
         # Processing Node :  EXP_Calculate_Product_Metrics -  Derives revenue, profit, and discounted price per product row
         EXP_Calculate_Product_Metrics = JNR_Sales_Products\
                                             .withColumn("DISCOUNTED_PRICE", col("SELLING_PRICE") * (1 - col("DISCOUNT") / 100)) \
-                                            .withColumn("REVENUE", round(col("DISCOUNTED_PRICE") * col("QUANTITY"))) \
-                                            .withColumn("PROFIT", (col("SELLING_PRICE") - col("COST_PRICE")) * col("QUANTITY"))\
+                                            .withColumn("REVENUE", col("DISCOUNTED_PRICE") * col("QUANTITY")) \
+                                            .withColumn("PROFIT", (col("DISCOUNTED_PRICE") - col("COST_PRICE")) * col("QUANTITY"))\
                                             .fillna(0, ["QUANTITY", "REVENUE", "PROFIT"])
         log.info(f"Data Frame : 'EXP_Calculate_Product_Metrics' is built....")                              
             
@@ -97,17 +95,19 @@ def m_load_product_performance():
                                         .otherwise(0.0)  
                                     ) \
                                 .withColumn(
+                                            "AVAILABLE_STOCK", 
+                                            (col("STOCK_QUANTITY") - col("TOTAL_QUANTITY_SOLD"))
+                                        )\
+                                .withColumn(
                                     "STOCK_LEVEL_STATUS", 
                                     when(
-                                        col("STOCK_QUANTITY") <= col("REORDER_LEVEL"), 
-                                        ("BELOW_REORDER_LEVEL")
+                                        col("AVAILABLE_STOCK") <= col("REORDER_LEVEL"), 
+                                        ("Below Reorder Level")
                                     )\
-                                    .otherwise("STOCK_OK")
+                                    .otherwise("Sufficient Stock")
                                 )\
                                 .withColumn("DAY_DT", current_date())
-        log.info(f"Data Frame : 'EXP_Final_Transform' is built....")
-
-       
+        log.info(f"Data Frame : 'EXP_Final_Transform' is built....")      
         
         # Processing Node : Shortcut_To_Prodct_Performance_Tgt - Final selection for loading to target
         Shortcut_To_Product_Performance_Tgt = EXP_Final_Transform\
@@ -126,12 +126,11 @@ def m_load_product_performance():
                                                     )
         log.info(f"Data Frame : 'Shortcut_To_Product_Performance_Tgt' is built....")
 
-
         # Validate and load data
         validator = DuplicateValidator()
         validator.validate_no_duplicates(Shortcut_To_Product_Performance_Tgt, key_columns=["PRODUCT_ID", "DAY_DT"]) 
 
-        load_to_postgres(Shortcut_To_Product_Performance_Tgt, "legacy.product_performance", "append")   
+        load_to_postgres(Shortcut_To_Product_Performance_Tgt, "dev_legacy.product_performance", "overwrite")   
 
         return "Product Performance task finished."         
     
