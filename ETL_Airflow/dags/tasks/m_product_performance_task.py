@@ -1,19 +1,23 @@
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
-from utils import init_spark, load_to_postgres, DuplicateValidator, read_from_postgres
+from utils import init_spark, load_to_postgres, DuplicateValidator, read_from_postgres, fetch_env_schema
 import logging
 from pyspark.sql.functions import col, sum, current_date, round, when
 
 log = logging.getLogger(__name__)
 
 @task
-def m_load_product_performance():
+def m_load_product_performance(env):
     try:
+        
+        raw = fetch_env_schema(env)['raw']
+        legacy = fetch_env_schema(env)['legacy']
+
         # Initialize Spark session
         spark = init_spark()       
 
         # Processing Node : SQ_Shortcut_To_sales - Reads data from 'raw.sales_pre' table
-        SQ_Shortcut_To_Sales = read_from_postgres(spark, "raw.sales_pre")
+        SQ_Shortcut_To_Sales = read_from_postgres(spark, f"{raw}.sales_pre")
         SQ_Shortcut_To_Sales = SQ_Shortcut_To_Sales\
                                 .select(
                                     col("ORDER_STATUS"),
@@ -24,7 +28,7 @@ def m_load_product_performance():
         log.info(f"Data Frame : 'SQ_Shortcut_To_Sales' is built....")
 
         # Processing Node : SQ_Shortcut_To_Products - Reads data from 'raw.products_pre' table
-        SQ_Shortcut_To_Products = read_from_postgres(spark, "raw.products_pre")
+        SQ_Shortcut_To_Products = read_from_postgres(spark, f"{raw}.products_pre")
         SQ_Shortcut_To_Products = SQ_Shortcut_To_Products \
                                     .select(                                      
                                         col("PRODUCT_ID"),
@@ -131,13 +135,13 @@ def m_load_product_performance():
         validator = DuplicateValidator()
         validator.validate_no_duplicates(Shortcut_To_Product_Performance_Tgt, key_columns=["PRODUCT_ID", "DAY_DT"]) 
 
-        load_to_postgres(Shortcut_To_Product_Performance_Tgt, "legacy.product_performance", "append")   
+        load_to_postgres(Shortcut_To_Product_Performance_Tgt, f"{legacy}.product_performance", "append")   
 
         return "Product Performance task finished."         
     
     except Exception as e:
         log.error(f"ETL task failed: {str(e)}", exc_info=True)
-        raise AirflowException(f"Product_performance ETL failed: {str(e)}")
+        raise AirflowException(f"Product_performance ETL failed: {str(e)}")      
 
     finally:
         spark.stop() 

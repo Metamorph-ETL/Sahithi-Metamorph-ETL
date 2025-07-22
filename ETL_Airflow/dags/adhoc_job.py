@@ -1,6 +1,6 @@
 from airflow.decorators import dag
 from datetime import  timedelta
-from tasks.adhoc.adhoc_mismatch_supplier_perforamce   import  m_load_supplier_performance
+from tasks.adhoc.adhoc_column_mismatch_product_performance   import  m_load_product_performance
 import pendulum
 
 IST = pendulum.timezone("Asia/Kolkata")
@@ -16,7 +16,7 @@ IST = pendulum.timezone("Asia/Kolkata")
 
 def etl_process():
 
-    m_load_supplier_performance()
+    m_load_product_performance()
    
 
 

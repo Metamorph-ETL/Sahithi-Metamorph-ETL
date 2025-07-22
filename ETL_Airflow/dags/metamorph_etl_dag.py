@@ -5,6 +5,7 @@ from tasks.m_supplier_performance_task import m_load_supplier_performance
 from tasks.m_product_performance_task import m_load_product_performance
 from tasks.m_customer_sales_report_task import m_load_customer_sales_report
 import pendulum
+import os 
 
 IST = pendulum.timezone("Asia/Kolkata")
 
@@ -23,13 +24,16 @@ default_args = {
 
 
 def etl_process():
-    supplier_task = m_ingest_data_into_suppliers()
-    product_task = m_ingest_data_into_products()
-    customer_task = m_ingest_data_into_customers()
-    sales_task = m_ingest_data_into_sales()
-    supplier_performance_task = m_load_supplier_performance()
-    product_performance_task = m_load_product_performance()
-    customer_sales_report_task = m_load_customer_sales_report()
+    # env  = os.getenv('ENV','dev')
+    env = 'prod'
+    
+    supplier_task = m_ingest_data_into_suppliers(env)
+    product_task = m_ingest_data_into_products(env)
+    customer_task = m_ingest_data_into_customers(env)
+    sales_task = m_ingest_data_into_sales(env)
+    supplier_performance_task = m_load_supplier_performance(env)
+    product_performance_task = m_load_product_performance(env)
+    customer_sales_report_task = m_load_customer_sales_report(env)
    
 
     # Set dependencies inside the DAG function
