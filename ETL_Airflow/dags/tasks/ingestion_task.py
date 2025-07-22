@@ -1,6 +1,6 @@
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
-from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator
+from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator,fetch_env_schema
 import logging
 from pyspark.sql.functions import col,current_date
 from datetime import datetime
@@ -9,11 +9,14 @@ from pyspark.sql import Row
 log = logging.getLogger(__name__)
 
 @task
-def m_ingest_data_into_suppliers():
+def m_ingest_data_into_suppliers(env):
     try:
+        raw = fetch_env_schema(env)['raw']
+        legacy = fetch_env_schema(env)['legacy']
+
         # Start Spark session
         spark = init_spark()
-
+    
         # API Client to fetch data
         log.info("Fetching supplier data from API...")
         client = APIClient()
@@ -53,9 +56,9 @@ def m_ingest_data_into_suppliers():
         validator.validate_no_duplicates(suppliers_df_tgt, key_columns=["SUPPLIER_ID"])   
               
         # Load the cleaned data to PostgreSQL        
-        load_to_postgres(suppliers_df_tgt, "raw.suppliers_pre", "overwrite")
+        load_to_postgres(suppliers_df_tgt, f"{raw}.suppliers_pre", "overwrite")
 
-        load_to_postgres(suppliers_legacy_df_tgt, "legacy.suppliers", "append")      
+        load_to_postgres(suppliers_legacy_df_tgt, f"{legacy}.suppliers", "append")      
     
         return "Suppliers ETL process completed successfully."
 
@@ -67,8 +70,12 @@ def m_ingest_data_into_suppliers():
             spark.stop()
                  
 @task
-def m_ingest_data_into_products():
+def m_ingest_data_into_products(env):
     try:
+          
+        raw = fetch_env_schema(env)['raw']
+        legacy = fetch_env_schema(env)['legacy']
+
         # Start Spark session
         spark = init_spark()
 
@@ -123,9 +130,9 @@ def m_ingest_data_into_products():
 
 
         # Load data       
-        load_to_postgres(products_df_tgt, "raw.products_pre", "overwrite")
+        load_to_postgres(products_df_tgt, f"{raw}.products_pre", "overwrite")
 
-        load_to_postgres(products_legacy_df_tgt, "legacy.products", "append")
+        load_to_postgres(products_legacy_df_tgt, f"{legacy}.products", "append")
 
         
         return "Products ETL process completed successfully."
@@ -140,8 +147,12 @@ def m_ingest_data_into_products():
 
 
 @task
-def m_ingest_data_into_customers():
+def m_ingest_data_into_customers(env):
     try:
+
+        raw = fetch_env_schema(env)['raw']
+        legacy = fetch_env_schema(env)['legacy']
+
         # Start Spark session
         spark = init_spark()
 
@@ -187,9 +198,9 @@ def m_ingest_data_into_customers():
         validator = DuplicateValidator()
         validator.validate_no_duplicates(customers_df_tgt, key_columns=["CUSTOMER_ID"])
         # Load data
-        load_to_postgres(customers_df_tgt, "raw.customers_pre", "overwrite")
+        load_to_postgres(customers_df_tgt, f"{raw}.customers_pre", "overwrite")
 
-        load_to_postgres(customers_legacy_df_tgt, "legacy.customers", "append")
+        load_to_postgres(customers_legacy_df_tgt, f"{legacy}.customers", "append")
 
         
         return "Customers ETL process completed successfully."
@@ -206,10 +217,13 @@ def m_ingest_data_into_customers():
 
 
 @task
-def m_ingest_data_into_sales():
+def m_ingest_data_into_sales(env):
     try:
-        # Start Spark session
-       
+
+        raw = fetch_env_schema(env)['raw']
+        legacy = fetch_env_schema(env)['legacy']
+
+        # Start Spark session  
         spark = init_spark()
 
         # API Client to fetch data
@@ -265,9 +279,9 @@ def m_ingest_data_into_sales():
         validator.validate_no_duplicates(sales_df_tgt, key_columns=["SALE_ID"])
 
         # Load the cleaned data to PostgreSQL
-        load_to_postgres(sales_df_tgt, "raw.sales_pre", "overwrite")
+        load_to_postgres(sales_df_tgt, f"{raw}.sales_pre", "overwrite")
 
-        load_to_postgres(sales_legacy_df_tgt, "legacy.sales", "append")
+        load_to_postgres(sales_legacy_df_tgt, f"{legacy}.sales", "append")
         
         
         return "Sales ETL process completed successfully."

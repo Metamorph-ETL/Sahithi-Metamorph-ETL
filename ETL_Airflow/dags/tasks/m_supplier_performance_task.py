@@ -1,6 +1,6 @@
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
-from utils import init_spark, load_to_postgres, DuplicateValidator, read_from_postgres
+from utils import init_spark, load_to_postgres, DuplicateValidator, fetch_env_schema,read_from_postgres
 import logging
 from pyspark.sql.functions import col, sum ,round, current_date, row_number, when,count,trim
 from pyspark.sql.window import Window
@@ -8,15 +8,17 @@ from pyspark.sql.window import Window
 log = logging.getLogger(__name__)
 
 @task
-def m_load_supplier_performance():
+def m_load_supplier_performance(env):
     try:
        
+        raw = fetch_env_schema(env)['raw']
+        legacy = fetch_env_schema(env)['legacy']
         
         # Initialize Spark session
         spark = init_spark()
 
         # Processing Node : SQ_Shortcut_To_sales - Reads data from 'raw.sales_pre' table
-        SQ_Shortcut_To_sales = read_from_postgres(spark, "raw.sales_pre")
+        SQ_Shortcut_To_sales = read_from_postgres(spark, f"{raw}.sales_pre")
         SQ_Shortcut_To_sales = SQ_Shortcut_To_sales\
                                 .select(
                                     col("ORDER_STATUS"),
@@ -28,7 +30,7 @@ def m_load_supplier_performance():
         log.info(f"Data Frame : 'SQ_Shortcut_To_sales' is built....")
 
         # Processing Node : SQ_Shortcut_To_Products - Reads data from 'raw.products_pre' table
-        SQ_Shortcut_To_Products = read_from_postgres(spark, "raw.products_pre")
+        SQ_Shortcut_To_Products = read_from_postgres(spark, f"{raw}.products_pre")
         SQ_Shortcut_To_Products = SQ_Shortcut_To_Products \
                                     .select(                                      
                                         col("PRODUCT_ID"),
@@ -39,7 +41,7 @@ def m_load_supplier_performance():
         log.info(f"Data Frame : 'SQ_Shortcut_To_products' is built....")
    
         # Processing Node : SQ_Shortcut_To_Suppliers - Reads data from 'raw.suppliers_pre' table
-        SQ_Shortcut_To_Suppliers = read_from_postgres(spark, "raw.suppliers_pre")
+        SQ_Shortcut_To_Suppliers = read_from_postgres(spark, f"{raw}.suppliers_pre")
         SQ_Shortcut_To_Suppliers =  SQ_Shortcut_To_Suppliers\
                                     .select(
                                         col("SUPPLIER_ID"),
@@ -195,7 +197,7 @@ def m_load_supplier_performance():
         validator.validate_no_duplicates(Shortcut_To_Supplier_Performance_Tgt,key_columns=["SUPPLIER_ID", "DAY_DT"] )
 
       
-        load_to_postgres(Shortcut_To_Supplier_Performance_Tgt, "legacy.supplier_performance", "append")   
+        load_to_postgres(Shortcut_To_Supplier_Performance_Tgt, f"{legacy}.supplier_performance", "append")   
 
         return "Supplier Performance task finished."
 

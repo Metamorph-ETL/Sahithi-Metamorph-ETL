@@ -19,7 +19,7 @@ services:
       - "7077:7077"
     volumes:
       - spark-data:/bitnami
-      - ./include:/usr/local/airflow/include
+      - ./prod_dags:/usr/local/airflow/prod_dags
       - ./apps:/opt/spark-apps
       - ./data:/opt/spark-data
       - ./jars:/usr/local/airflow/jars
@@ -41,7 +41,7 @@ services:
       - SPARK_DRIVER_CLASSPATH=/usr/local/airflow/jars/postgresql-42.7.1.jar
       - SPARK_EXECUTOR_CLASSPATH=/usr/local/airflow/jars/postgresql-42.7.1.jar
     volumes:
-      - ./include:/usr/local/airflow/include
+      - ./prod_dags:/usr/local/airflow/prod_dags
       - spark-data:/bitnami
       - ./apps:/opt/spark-apps
       - ./jars:/usr/local/airflow/jars
@@ -51,5 +51,70 @@ services:
     networks:
       - airflow
 
+
+  webserver-prod:
+    image: etl-project_1b0e5d/airflow:latest
+    build:
+      context: .
+    environment:
+      - ENV=prod
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@host.docker.internal:5432/meta_morph
+      - AIRFLOW__CORE__DAGS_FOLDER=/usr/local/airflow/prod_dags
+      - AIRFLOW__WEBSERVER__SECRET_KEY=UcMuZ/a2AcTzksrXFrN8/A==
+    ports:
+      - "3600:3600"
+    volumes:
+      - ./prod_dags:/usr/local/airflow/prod_dags
+    networks:
+      - airflow
+    command: >
+      /bin/bash -c "
+      git clone --branch master https://github.com/Metamorph-ETL/Sahithi-Metamorph-ETL.git /tmp/repo &&
+      cp -r /tmp/repo/ETL-Airflow/dags/* /usr/local/airflow/prod_dags/ &&
+      airflow db upgrade &&
+      airflow sync-perm &&
+      airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin &&
+      airflow webserver --port 3600"
+      
+  scheduler-prod:
+    image: etl-project_1b0e5d/airflow:latest
+    environment:
+      - ENV=prod
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__SCHEDULER__MAX_THREADS=10
+      - AIRFLOW__CORE__PARALLELISM=10
+      - AIRFLOW__CORE__DAG_CONCURRENCY=10
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@host.docker.internal:5432/meta_morph
+      - AIRFLOW__CORE__DAGS_FOLDER=/usr/local/airflow/prod_dags
+      - AIRFLOW__WEBSERVER__SECRET_KEY=UcMuZ/a2AcTzksrXFrN8/A==
+    volumes:
+      - ./prod_dags:/usr/local/airflow/prod_dags
+    networks:
+      - airflow
+    command: >
+      /bin/bash -c "
+      airflow db upgrade &&
+      airflow scheduler"
+
+  triggerer-prod:
+    image: etl-project_1b0e5d/airflow:latest
+    environment:
+      - ENV=prod
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@host.docker.internal:5432/meta_morph
+      - AIRFLOW__CORE__DAGS_FOLDER=/usr/local/airflow/prod_dags
+      - AIRFLOW__WEBSERVER__SECRET_KEY=UcMuZ/a2AcTzksrXFrN8/A==
+    volumes:
+      - ./prod_dags:/usr/local/airflow/prod_dags
+    networks:
+      - airflow
+    command: >
+      /bin/bash -c "
+      airflow db upgrade &&
+      airflow triggerer"
+
+
 volumes:
   spark-data:
+

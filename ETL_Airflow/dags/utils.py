@@ -137,3 +137,18 @@ def read_from_postgres(spark, table_name):
     )
     log.info(f"Successfully read '{table_name}' from PostgreSQL.")
     return df
+
+def fetch_env_schema(env):
+    if env == 'prod':
+        logging.info("THIS IS PRODUCTION ENVIRONMENT")
+        result = {
+            "raw" : "raw",
+            "legacy" : "legacy"        
+        }
+    else :
+        logging.info("THIS IS DEVELOPMENT ENVIRONMENT")
+        result = {
+            "raw" : "dev_raw",
+            "legacy" : "dev_legacy"
+        }
+    return result 

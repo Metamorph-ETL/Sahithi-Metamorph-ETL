@@ -1,6 +1,6 @@
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
-from utils import init_spark, load_to_postgres, DuplicateValidator, read_from_postgres
+from utils import init_spark, load_to_postgres, DuplicateValidator, read_from_postgres,fetch_env_schema
 import logging
 from pyspark.sql.functions import col, sum, current_date, round, when, date_sub, month, year, percent_rank, current_timestamp,lit
 from pyspark.sql.window import Window
@@ -8,13 +8,17 @@ from pyspark.sql.window import Window
 log = logging.getLogger(__name__)
 
 @task
-def m_load_customer_sales_report():
+def m_load_customer_sales_report(env):
     try:
+
+        raw = fetch_env_schema(env)['raw']
+        legacy = fetch_env_schema(env)['legacy']
+        
         # Initialize Spark session
         spark = init_spark()       
 
         # Processing Node : SQ_Shortcut_To_sales - Reads data from 'raw.sales_pre' table
-        SQ_Shortcut_To_Sales = read_from_postgres(spark, "raw.sales_pre")
+        SQ_Shortcut_To_Sales = read_from_postgres(spark, f"{raw}.sales_pre")
         SQ_Shortcut_To_Sales = SQ_Shortcut_To_Sales\
                                 .select(
                                     col("SALE_ID"),
@@ -28,7 +32,7 @@ def m_load_customer_sales_report():
         log.info(f"Data Frame : 'SQ_Shortcut_To_Sales' is built....")
 
         # Processing Node : SQ_Shortcut_To_Products - Reads data from 'raw.products_pre' table
-        SQ_Shortcut_To_Products = read_from_postgres(spark, "raw.products_pre")
+        SQ_Shortcut_To_Products = read_from_postgres(spark, f"{raw}.products_pre")
         SQ_Shortcut_To_Products = SQ_Shortcut_To_Products\
                                     .select(                                      
                                         col("PRODUCT_ID"),
@@ -39,7 +43,7 @@ def m_load_customer_sales_report():
         log.info(f"Data Frame : 'SQ_Shortcut_To_Products' is built....")
 
         # Processing Node : SQ_Shortcut_To_Customers - Reads data from 'raw.customers_pre' table
-        SQ_Shortcut_To_Customers = read_from_postgres(spark, "raw.customers_pre")
+        SQ_Shortcut_To_Customers = read_from_postgres(spark, f"{raw}.customers_pre")
         SQ_Shortcut_To_Customers = SQ_Shortcut_To_Customers\
                                     .select(
                                         col("CUSTOMER_ID"),
@@ -49,7 +53,7 @@ def m_load_customer_sales_report():
         log.info(f"Data Frame : 'SQ_Shortcut_To_Customers' is built....")
 
         # Processing Node : SQ_Shortcut_To_Supplier_Performance - Read from 'legacy.supplier_performance'
-        SQ_Shortcut_To_Supplier_Performance = read_from_postgres(spark, "legacy.supplier_performance")\
+        SQ_Shortcut_To_Supplier_Performance = read_from_postgres(spark, f"{legacy}.supplier_performance")\
                                                 .select(
                                                     col("TOP_SELLING_PRODUCT"), 
                                                     col("DAY_DT")
@@ -217,7 +221,7 @@ def m_load_customer_sales_report():
         validator = DuplicateValidator()
         validator.validate_no_duplicates(Shortcut_To_CSR_Tgt, key_columns=["SALE_ID", "DAY_DT"]) 
 
-        load_to_postgres(Shortcut_To_CSR_Tgt, "legacy.customer_sales_report", "append")   
+        load_to_postgres(Shortcut_To_CSR_Tgt,f"{legacy}.customer_sales_report", "append")   
 
         return "Customer Sales Report task finished."         
     
