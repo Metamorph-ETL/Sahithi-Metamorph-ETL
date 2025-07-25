@@ -67,7 +67,7 @@ def m_load_customer_sales_report(env):
         # Processing Node : FIL_Cancelled_Sales - Filters out cancelled orders
         FIL_Cancelled_Sales = SQ_Shortcut_To_Sales\
                                 .filter(
-                                    (col("ORDER_STATUS") != "CANCELLED")                              
+                                    (col("ORDER_STATUS") != "Cancelled")                              
                                 )
         log.info(f"Data Frame : 'FIL_Cancelled_Sales' is built....")
 
@@ -98,7 +98,7 @@ def m_load_customer_sales_report(env):
                             .join(
                                 SQ_Shortcut_To_Customers,
                                 on="CUSTOMER_ID",
-                                how="left"
+                                how="inner"
                             )\
                             .select(
                                     JNR_Sales_Products.SALE_ID,

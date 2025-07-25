@@ -105,7 +105,7 @@ def m_load_product_performance(env):
                                 .withColumn(
                                     "STOCK_LEVEL_STATUS", 
                                     when(
-                                        col("AVAILABLE_STOCK") <= col("REORDER_LEVEL"), 
+                                        col("AVAILABLE_STOCK") < col("REORDER_LEVEL"), 
                                         ("Below Reorder Level")
                                     )\
                                     .otherwise("Sufficient Stock")
