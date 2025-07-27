@@ -1,8 +1,8 @@
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
-from utils import init_spark, load_to_postgres, DuplicateValidator, read_from_postgres,fetch_env_schema
+from utils import init_spark, load_to_postgres, DuplicateValidator, fetch_env_schema,read_from_postgres
 import logging
-from pyspark.sql.functions import col, sum, current_date, round, when, date_sub, month, year, percent_rank, current_timestamp,lit
+from pyspark.sql.functions import col, sum, current_date, round, when, date_sub, month, year, percent_rank, current_timestamp,lit,date_format
 from pyspark.sql.window import Window
 
 log = logging.getLogger(__name__)
@@ -89,8 +89,7 @@ def m_load_customer_sales_report(env):
                                         SQ_Shortcut_To_Products.PRODUCT_NAME,
                                         SQ_Shortcut_To_Products.CATEGORY,
                                         SQ_Shortcut_To_Products.SELLING_PRICE 
-                                )
-        
+                                )       
         log.info(f"Data Frame : 'JNR_Sales_Products' is built....")
 
         # Processing Node : JNR_All_Data - Joins with customer data
@@ -112,9 +111,9 @@ def m_load_customer_sales_report(env):
                                     JNR_Sales_Products.CATEGORY,
                                     JNR_Sales_Products.SELLING_PRICE,
                                     SQ_Shortcut_To_Customers.NAME,
-                                    SQ_Shortcut_To_Customers.CITY                                              
-                            )
-                                 
+                                    SQ_Shortcut_To_Customers.CITY                       
+
+                            )                             
         log.info(f"Data Frame : 'JNR_All_Data' is built....")
 
         # Processing Node : EXP_Calculate_Metrics - Calculates derived fields
@@ -130,69 +129,109 @@ def m_load_customer_sales_report(env):
                                               col("SALE_DATE")
                                               )
                                             )\
-                                    .withColumn("SALE_MONTH", month(col("SALE_DATE")))\
+                                    .withColumn('SALE_MONTH', date_format(col('SALE_DATE'), 'MMMM'))\
                                     .withColumn("SALE_YEAR", year(col("SALE_DATE")))\
-                                    .withColumn("PRICE", round(col("SELLING_PRICE"), 2))\
+                                    .withColumn("CAL_PRICE", col("SELLING_PRICE")* (1 - col("DISCOUNT")/100))\
+                                    .withColumn("PRICE", round(col("CAL_PRICE"),2))\
                                     .withColumn("SALE_AMOUNT", 
                                                round(col("QUANTITY") * col("SELLING_PRICE") * 
                                                (1 - col("DISCOUNT")/100), 2))
         log.info(f"Data Frame : 'EXP_Calculate_Metrics' is built....")
              
-        # Processing Node : JNR_With_Loyalty - Join loyalty tier back to main data
-        rank_window = Window.orderBy(col("SALE_AMOUNT").desc())
-        JNR_With_Loyalty = EXP_Calculate_Metrics\
-                                .withColumn("PURCHASE_RANK", percent_rank().over(rank_window))\
-                                .withColumn("LOYALTY_TIER",
-                                    when(
-                                        col("PURCHASE_RANK") <= 0.2, 
-                                        "Gold"
-                                    )\
-                                    .when(
-                                        col("PURCHASE_RANK") <= 0.5, 
-                                        "Silver"
-                                    )\
-                                     .otherwise("Bronze")
-                                )
-        log.info(f"Data Frame : 'JNR_With_Loyalty' is built....")
+        # Process the Node : AGG_TRANS_Customer - Calculate the aggregates.
+        AGG_TRANS_Customer = EXP_Calculate_Metrics \
+            .groupBy("CUSTOMER_ID") \
+            .agg(
+                sum("SALE_AMOUNT").alias("AGG_SALES_AMOUNT")
+            )
+        logging.info("Data Frame : 'AGG_TRANS_Customer' is built...")
 
+        quantiles = AGG_TRANS_Customer.approxQuantile(
+            "AGG_SALES_AMOUNT",
+            [0.5, 0.8], 0.01
+        )
+        silver_tier = quantiles[0]
+        gold_tier = quantiles[1]
+
+      # Process the Node :JNR_CALCULATE_METRICS - Add Loyalty_Tier column
+        EXP_Customer_Sales_Report = AGG_TRANS_Customer \
+            .withColumn(
+                "LOYALTY_TIER",
+                when(col("AGG_SALES_AMOUNT") > gold_tier, "GOLD")
+                .when(
+                    col("AGG_SALES_AMOUNT").between(silver_tier, gold_tier),
+                    "SILVER"
+                )
+                .otherwise("BRONZE")
+            )
+        logging.info("Data Frame : 'EXP_Customer_Sales_Report' is built...")
+
+        JNR_CALCULATE_METRICS = EXP_Customer_Sales_Report.alias("cust") \
+                                .join(
+                                    EXP_Calculate_Metrics.alias("metrics"),
+                                    col("cust.CUSTOMER_ID") == col("metrics.CUSTOMER_ID"),
+                                    how="left"
+                                ) \
+                                .select(
+                                    col("cust.LOYALTY_TIER").alias("LOYALTY_TIER"),
+                                    col("cust.AGG_SALES_AMOUNT").alias("AGG_SALES_AMOUNT"),
+                                    col("metrics.SALE_ID").alias("SALE_ID"),
+                                    col("metrics.CUSTOMER_ID").alias("CUSTOMER_ID"),
+                                    col("metrics.PRODUCT_ID").alias("PRODUCT_ID"),
+                                    col("metrics.QUANTITY").alias("QUANTITY"),
+                                    col("metrics.DISCOUNT").alias("DISCOUNT"),
+                                    col("metrics.ORDER_STATUS").alias("ORDER_STATUS"),
+                                    col("metrics.PRODUCT_NAME").alias("PRODUCT_NAME"),
+                                    col("metrics.CATEGORY").alias("CATEGORY"),
+                                    col("metrics.SELLING_PRICE").alias("SELLING_PRICE"),
+                                    col("metrics.NAME").alias("NAME"),
+                                    col("metrics.CITY").alias("CITY"),
+                                    col("metrics.DAY_DT").alias("DAY_DT"),
+                                    col("metrics.SALE_DATE").alias("SALE_DATE"),
+                                    col("metrics.SALE_MONTH").alias("SALE_MONTH"),
+                                    col("metrics.SALE_YEAR").alias("SALE_YEAR"),
+                                    col("metrics.PRICE").alias("PRICE"),
+                                    col("metrics.SALE_AMOUNT").alias("SALE_AMOUNT")
+                                )
+
+        log.info(f"Data Frame : 'JNR_CALCULATE_METRICS' is built....")
+        
        # Processing Node: SQ_Shortcut_To_Top_Selling_Products - Select relevant top performers
         SQ_Shortcut_To_Top_Selling_Products = SQ_Shortcut_To_Supplier_Performance\
                                                 .select(
                                                     col("TOP_SELLING_PRODUCT"),
-                                                    lit("Y").alias("TOP_PERFORMER")
+                                                    lit("true").alias("TOP_PERFORMER")
                                                 )
-
         # Processing Node: JNR_With_Top_Performer - Join top performer info with main data
-        JNR_With_Top_Performer = JNR_With_Loyalty\
+        JNR_With_Top_Performer = JNR_CALCULATE_METRICS\
                                     .join(
                                         SQ_Shortcut_To_Top_Selling_Products,
-                                        JNR_With_Loyalty.PRODUCT_NAME == SQ_Shortcut_To_Top_Selling_Products.TOP_SELLING_PRODUCT,
+                                       JNR_CALCULATE_METRICS.PRODUCT_NAME == SQ_Shortcut_To_Top_Selling_Products.TOP_SELLING_PRODUCT,
                                         how="left"
                                     )\
                                     .select(
-                                            JNR_With_Loyalty.DAY_DT,
-                                            JNR_With_Loyalty.CUSTOMER_ID,
-                                            JNR_With_Loyalty.NAME.alias("CUSTOMER_NAME"),
-                                            JNR_With_Loyalty.SALE_ID,
-                                            JNR_With_Loyalty.CITY,
-                                            JNR_With_Loyalty.PRODUCT_NAME,
-                                            JNR_With_Loyalty.CATEGORY,
-                                            JNR_With_Loyalty.SALE_DATE,
-                                            JNR_With_Loyalty.SALE_MONTH,
-                                            JNR_With_Loyalty.SALE_YEAR,
-                                            JNR_With_Loyalty.QUANTITY,
-                                            JNR_With_Loyalty.PRICE,
-                                            JNR_With_Loyalty.SALE_AMOUNT,
-                                            JNR_With_Loyalty.LOYALTY_TIER,
-                                            SQ_Shortcut_To_Top_Selling_Products.TOP_PERFORMER
+                                          JNR_CALCULATE_METRICS.DAY_DT,
+                                           JNR_CALCULATE_METRICS.CUSTOMER_ID,
+                                           JNR_CALCULATE_METRICS.NAME.alias("CUSTOMER_NAME"),
+                                           JNR_CALCULATE_METRICS.SALE_ID,
+                                           JNR_CALCULATE_METRICS.CITY,
+                                           JNR_CALCULATE_METRICS.PRODUCT_NAME,
+                                           JNR_CALCULATE_METRICS.CATEGORY,
+                                           JNR_CALCULATE_METRICS.SALE_DATE,
+                                           JNR_CALCULATE_METRICS.SALE_MONTH,
+                                           JNR_CALCULATE_METRICS.SALE_YEAR,
+                                           JNR_CALCULATE_METRICS.QUANTITY,
+                                           JNR_CALCULATE_METRICS.PRICE,
+                                           JNR_CALCULATE_METRICS.SALE_AMOUNT,
+                                           JNR_CALCULATE_METRICS.LOYALTY_TIER,
+                                           SQ_Shortcut_To_Top_Selling_Products.TOP_PERFORMER
                                    )\
                                     .withColumn(
                                             "TOP_PERFORMER",
-                                            when(col("TOP_PERFORMER").isNull(), "N").otherwise(col("TOP_PERFORMER"))
+                                            when(col("TOP_PERFORMER").isNull(), "false").otherwise(col("TOP_PERFORMER"))
                                    )\
                                    .withColumn("LOAD_TSTMP", current_timestamp())
         log.info(f"Data Frame : 'JNR_With_Top_Performer' is built....")
-
 
         # Processing Node : Shortcut_To_CSR_Tgt - Final selection for target
         Shortcut_To_CSR_Tgt = JNR_With_Top_Performer\
@@ -216,12 +255,11 @@ def m_load_customer_sales_report(env):
                                     )             
         log.info(f"Data Frame : 'Shortcut_To_CSR_Tgt' is built....")
         
-
         # Validate and load data
         validator = DuplicateValidator()
         validator.validate_no_duplicates(Shortcut_To_CSR_Tgt, key_columns=["SALE_ID", "DAY_DT"]) 
 
-        load_to_postgres(Shortcut_To_CSR_Tgt,f"{legacy}.customer_sales_report", "append")   
+        load_to_postgres(Shortcut_To_CSR_Tgt, f"{legacy}.customer_sales_report", "append")   
 
         return "Customer Sales Report task finished."         
     
