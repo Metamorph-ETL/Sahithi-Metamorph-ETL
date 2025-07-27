@@ -131,8 +131,7 @@ def m_load_customer_sales_report(env):
                                             )\
                                     .withColumn('SALE_MONTH', date_format(col('SALE_DATE'), 'MMMM'))\
                                     .withColumn("SALE_YEAR", year(col("SALE_DATE")))\
-                                    .withColumn("CAL_PRICE", col("SELLING_PRICE")* (1 - col("DISCOUNT")/100))\
-                                    .withColumn("PRICE", round(col("CAL_PRICE"),2))\
+                                    .withColumn("PRICE", col("SELLING_PRICE")* (1 - col("DISCOUNT")/100))\
                                     .withColumn("SALE_AMOUNT", 
                                                round(col("QUANTITY") * col("SELLING_PRICE") * 
                                                (1 - col("DISCOUNT")/100), 2))
@@ -190,7 +189,7 @@ def m_load_customer_sales_report(env):
                                     col("metrics.SALE_DATE").alias("SALE_DATE"),
                                     col("metrics.SALE_MONTH").alias("SALE_MONTH"),
                                     col("metrics.SALE_YEAR").alias("SALE_YEAR"),
-                                    col("metrics.PRICE").alias("PRICE"),
+                                    round(col("metrics.PRICE"),2).alias("PRICE"),
                                     col("metrics.SALE_AMOUNT").alias("SALE_AMOUNT")
                                 )
 
