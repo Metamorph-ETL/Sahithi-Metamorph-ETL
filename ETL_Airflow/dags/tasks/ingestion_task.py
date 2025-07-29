@@ -1,6 +1,6 @@
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
-from utils import init_spark, APIClient, load_to_postgres, DuplicateValidator,fetch_env_schema
+from tasks.utils import init_spark, APIClient, load_to_postgres, DuplicateValidator,fetch_env_schema
 import logging
 from pyspark.sql.functions import col,current_date
 from datetime import datetime
