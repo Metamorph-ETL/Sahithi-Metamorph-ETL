@@ -80,43 +80,27 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+today_date = datetime.now().strftime("%Y%m%d")
+
 @app.get("/v1/products")
 def get_products():
-    date = datetime.now().strftime("%Y%m%d")
-    blob = get_latest_file_from_gcs("product",date) 
+    blob = get_latest_file_from_gcs("product",today_date) 
     df = read_csv_from_gcs(blob)
     return {"status": 200, "data": df.to_dict(orient="records")}
   
 @app.get("/v1/customers")
 def get_customers(current_user: User = Depends(get_current_active_user)):
-    date = datetime.now().strftime("%Y%m%d")
-    blob = get_latest_file_from_gcs("customer",date)
+    blob = get_latest_file_from_gcs("customer",today_date)
     df = read_csv_from_gcs(blob)
     return {"status": 200, "data": df.to_dict(orient="records")}
 
 @app.get("/v1/suppliers")
 def get_suppliers():
-    date = datetime.now().strftime("%Y%m%d")
-    blob = get_latest_file_from_gcs("supplier",date)
+    blob = get_latest_file_from_gcs("supplier",today_date)
     df = read_csv_from_gcs(blob)
     return {"status": 200, "data": df.to_dict(orient="records")}
 
 # API Endpoints for v2
-@app.post("/v1/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token = create_access_token(
-        data={"sub": user.username},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
-
 @app.get("/v2/products")
 def get_products(date: str = Query(default=None)):
     if date is None:
@@ -127,7 +111,7 @@ def get_products(date: str = Query(default=None)):
         df = read_csv_from_gcs(blob)
         return {
             "status": 200,
-            "date_used": date,
+            "file_date": date,
             "data": df.to_dict(orient="records")
         }
     except HTTPException as e:
@@ -143,7 +127,7 @@ def get_customers(current_user: User = Depends(get_current_active_user),date: st
         df = read_csv_from_gcs(blob)
         return {
             "status": 200,
-            "date_used": date,
+            "file_date": date,
             "data": df.to_dict(orient="records")
         }
     except HTTPException as e:
@@ -159,7 +143,7 @@ def get_suppliers(date: str = Query(default=None)):
         df = read_csv_from_gcs(blob)
         return {
             "status": 200,
-            "date_used": date,
+            "file_date": date,
             "data": df.to_dict(orient="records")
         }
     except HTTPException as e:
