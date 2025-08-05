@@ -24,6 +24,15 @@ default_args = {
 
 
 def etl_process():
+    """
+    Main DAG function for the ingestion_data_pipeline.
+    
+    This pipeline:
+    1. Ingests data from source systems (suppliers, products, customers, sales).
+    2. Computes supplier performance.
+    3. Computes product performance.
+    4. Generates customer sales reports.
+    """
     env  = os.getenv('ENV','dev')
     
     

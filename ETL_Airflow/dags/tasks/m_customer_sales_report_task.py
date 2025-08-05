@@ -9,6 +9,27 @@ log = logging.getLogger(__name__)
 
 @task
 def m_load_customer_sales_report(env):
+
+    """
+    ETL task to load and transform customer sales data and generate a sales report.
+
+    This task:
+    1. Extracts sales, product, customer, and supplier performance data.
+    2. Transforms the data by filtering, joining, and calculating sales metrics.
+    3. Aggregates customer sales to assign loyalty tiers.
+    4. Flags top-performing products.
+    5. Validates for duplicate records.
+    6. Loads the result into a Postgres table.
+
+    Args:
+        env (str): Environment name to determine schema configurations.
+
+    Returns:
+        str: Success message if the task completes successfully.
+
+    Raises:
+        AirflowException: If any error occurs during the ETL process.
+    """
     try:
 
         raw = fetch_env_schema(env)['raw']
