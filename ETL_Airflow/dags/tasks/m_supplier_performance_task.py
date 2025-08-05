@@ -165,8 +165,17 @@ def m_load_supplier_performance(env):
                                                         col("agg.agg_total_stock_sold"),
                                                         col("top.TOP_SELLING_PRODUCT")
                                                     )\
-                                                    .fillna(
-                                                        0, subset=["agg_total_revenue", "agg_total_products_sold", "agg_total_stock_sold"]
+                                                     .withColumn(
+                                                        "agg_total_revenue",
+                                                        when(col("agg_total_revenue").isNull(), 0).otherwise(col("agg_total_revenue"))
+                                                    )\
+                                                    .withColumn(
+                                                        "agg_total_products_sold",
+                                                        when(col("agg_total_products_sold").isNull(), 0).otherwise(col("agg_total_products_sold"))
+                                                    )\
+                                                    .withColumn(
+                                                        "agg_total_stock_sold",
+                                                        when(col("agg_total_stock_sold").isNull(), 0).otherwise(col("agg_total_stock_sold"))
                                                     )\
                                                     .withColumn(
                                                         "TOP_SELLING_PRODUCT",
