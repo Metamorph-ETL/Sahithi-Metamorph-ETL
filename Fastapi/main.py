@@ -80,25 +80,30 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-today_date = datetime.now().strftime("%Y%m%d")
+# --------------------------------------------------- --------------------------------------------------- ---------------------------------------------------
+# ####################################/v1/ Endpoints - Decommissioned as part of MM-163####################################################
+# --------------------------------------------------- --------------------------------------------------- ---------------------------------------------------
 
-@app.get("/v1/products")
-def get_products():
-    blob = get_latest_file_from_gcs("product",today_date) 
-    df = read_csv_from_gcs(blob)
-    return {"status": 200, "data": df.to_dict(orient="records")}
+# today_date = datetime.now().strftime("%Y%m%d")
+
+# @app.get("/v1/products")
+# def get_products():
+#     blob = get_latest_file_from_gcs("product",today_date) 
+#     df = read_csv_from_gcs(blob)
+#     return {"status": 200, "data": df.to_dict(orient="records")}
   
-@app.get("/v1/customers")
-def get_customers(current_user: User = Depends(get_current_active_user)):
-    blob = get_latest_file_from_gcs("customer",today_date)
-    df = read_csv_from_gcs(blob)
-    return {"status": 200, "data": df.to_dict(orient="records")}
+# @app.get("/v1/customers")
+# def get_customers(current_user: User = Depends(get_current_active_user)):
+#     blob = get_latest_file_from_gcs("customer",today_date)
+#     df = read_csv_from_gcs(blob)
+#     return {"status": 200, "data": df.to_dict(orient="records")}
 
-@app.get("/v1/suppliers")
-def get_suppliers():
-    blob = get_latest_file_from_gcs("supplier",today_date)
-    df = read_csv_from_gcs(blob)
-    return {"status": 200, "data": df.to_dict(orient="records")}
+# @app.get("/v1/suppliers")
+# def get_suppliers():
+#     blob = get_latest_file_from_gcs("supplier",today_date)
+#     df = read_csv_from_gcs(blob)
+#     return {"status": 200, "data": df.to_dict(orient="records")}
+
 
 # API Endpoints for v2
 @app.get("/v2/products")
