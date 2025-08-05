@@ -73,7 +73,9 @@ def m_load_product_performance(env):
                                             .withColumn("DISCOUNTED_PRICE", col("SELLING_PRICE") * (1 - col("DISCOUNT") / 100)) \
                                             .withColumn("REVENUE", col("DISCOUNTED_PRICE") * col("QUANTITY")) \
                                             .withColumn("PROFIT", (col("DISCOUNTED_PRICE") - col("COST_PRICE")) * col("QUANTITY"))\
-                                            .fillna(0, ["QUANTITY", "REVENUE", "PROFIT"])
+                                            .withColumn("QUANTITY", when(col("QUANTITY").isNull(), 0).otherwise(col("QUANTITY"))) \
+                                            .withColumn("REVENUE", when(col("REVENUE").isNull(), 0).otherwise(col("REVENUE"))) \
+                                            .withColumn("PROFIT", when(col("PROFIT").isNull(), 0).otherwise(col("PROFIT")))
         log.info(f"Data Frame : 'EXP_Calculate_Product_Metrics' is built....")                              
             
        # Processing Node :  AGG_TRANS_Product_Level -  Aggregate product metrics
