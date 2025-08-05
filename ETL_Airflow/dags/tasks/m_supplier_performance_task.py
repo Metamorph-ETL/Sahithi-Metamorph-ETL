@@ -9,6 +9,27 @@ log = logging.getLogger(__name__)
 
 @task
 def m_load_supplier_performance(env):
+
+    """
+    ETL task to compute and load supplier performance metrics into PostgreSQL.
+
+    The task performs the following:
+    - Reads sales, products, and suppliers data from staging tables.
+    - Filters and joins datasets to calculate revenue, sales count, and stock sold.
+    - Ranks products to determine each supplier's top-selling product.
+    - Aggregates performance data at the supplier level.
+    - Validates for duplicates.
+    - Loads the transformed data to the 'supplier_performance' table in PostgreSQL.
+
+    Args:
+        env (str): Environment identifier ('dev' or 'prod').
+
+    Returns:
+        str: Completion message.
+
+    Raises:
+        AirflowException: If any error occurs during the ETL process.
+    """
     try:
        
         raw = fetch_env_schema(env)['raw']

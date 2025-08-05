@@ -8,6 +8,29 @@ log = logging.getLogger(__name__)
 
 @task
 def m_load_product_performance(env):
+
+    """
+    ETL task for computing and loading product performance metrics.
+
+    This task performs the following steps:
+    1. Reads raw sales and product data from Postgres.
+    2. Filters out cancelled orders.
+    3. Joins sales and product data.
+    4. Calculates discounted price, revenue, and profit.
+    5. Aggregates metrics at the product level.
+    6. Computes derived metrics like average sale price, stock availability.
+    7. Validates data for duplicates.
+    8. Loads final dataset into the legacy product performance table.
+
+    Args:
+        env (str): Environment identifier (e.g., 'dev', 'prod') to fetch schema mapping.
+
+    Returns:
+        str: Status message indicating completion.
+    
+    Raises:
+        AirflowException: If any error occurs during the ETL process.
+    """
     try:
         
         raw = fetch_env_schema(env)['raw']

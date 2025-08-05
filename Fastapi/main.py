@@ -22,6 +22,8 @@ app = FastAPI()
 
 # Authentication models and utils
 class Token(BaseModel):
+    """Represents an access token returned after successful login."""
+
     access_token: str
     token_type: str
 
@@ -32,6 +34,11 @@ GCS_BUCKET_NAME = "meta-morph-flow"
 GCS_CREDENTIALS_PATH = env["GCS_CREDENTIALS_PATH"]
 
 def get_gcs_client():
+    """
+    Returns an authenticated Google Cloud Storage client.
+    Raises:
+        HTTPException: If authentication fails.
+    """
     try:
         credentials = service_account.Credentials.from_service_account_file(
             GCS_CREDENTIALS_PATH
@@ -41,6 +48,19 @@ def get_gcs_client():
         raise HTTPException(status_code=500, detail=f"GCS client error: {str(e)}")
 
 def get_latest_file_from_gcs(file_keyword: str, date_str: str):
+    """
+    Retrieves the latest blob from GCS for the given file keyword and date.
+
+    Args:
+        file_keyword (str): Prefix of the file name (e.g., 'product').
+        date_str (str): Date in YYYYMMDD format.
+
+    Returns:
+        Blob: GCS blob object.
+
+    Raises:
+        HTTPException: If file is not found or GCS access fails.
+    """
     try:
     
         client = get_gcs_client()
@@ -57,6 +77,18 @@ def get_latest_file_from_gcs(file_keyword: str, date_str: str):
         raise HTTPException(status_code=500, detail=f"GCS access error: {str(e)}")
 
 def read_csv_from_gcs(blob):
+    """
+    Downloads and reads CSV data from a GCS blob.
+
+    Args:
+        blob: The GCS blob object.
+
+    Returns:
+        pd.DataFrame: DataFrame containing CSV data.
+
+    Raises:
+        HTTPException: If CSV download or parsing fails.
+    """
     try:
         content = blob.download_as_string()
         return pd.read_csv(io.StringIO(content.decode('utf-8')))
@@ -67,6 +99,18 @@ def read_csv_from_gcs(blob):
 # API Endpoints for v1
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Authenticates the user and returns an access token.
+
+    Args:
+        form_data: OAuth2 login form data with username and password.
+
+    Returns:
+        Token: JWT token and token type.
+
+    Raises:
+        HTTPException: If authentication fails.
+    """
     user = authenticate_user(fake_users_db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -88,18 +132,25 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 # @app.get("/v1/products")
 # def get_products():
+#  Returns product data from GCS for the given date and  dict: Product data as list of dictionaries.
+
+
 #     blob = get_latest_file_from_gcs("product",today_date) 
 #     df = read_csv_from_gcs(blob)
 #     return {"status": 200, "data": df.to_dict(orient="records")}
   
 # @app.get("/v1/customers")
 # def get_customers(current_user: User = Depends(get_current_active_user)):
+#  Returns customer data from GCS for the given date and  dict: Product data as list of dictionaries.
+
 #     blob = get_latest_file_from_gcs("customer",today_date)
 #     df = read_csv_from_gcs(blob)
 #     return {"status": 200, "data": df.to_dict(orient="records")}
 
 # @app.get("/v1/suppliers")
 # def get_suppliers():
+#  Returns suppliers data from GCS for the given date and dict: Product data as list of dictionaries.
+
 #     blob = get_latest_file_from_gcs("supplier",today_date)
 #     df = read_csv_from_gcs(blob)
 #     return {"status": 200, "data": df.to_dict(orient="records")}
@@ -108,6 +159,16 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 # API Endpoints for v2
 @app.get("/v2/products")
 def get_products(date: str = Query(default=None)):
+    """
+    Returns product data from GCS for the given date.
+
+    Query Parameters:
+        date (str): Date string in YYYYMMDD format (optional).
+
+    Returns:
+        dict: Product data as list of dictionaries.
+    """
+
     if date is None:
             date = datetime.now().strftime("%Y%m%d")
         
@@ -124,6 +185,16 @@ def get_products(date: str = Query(default=None)):
   
 @app.get("/v2/customers")
 def get_customers(current_user: User = Depends(get_current_active_user),date: str = Query(default=None)):
+    """
+    Returns customer data from GCS for the given date.
+    Requires authentication.
+
+    Query Parameters:
+        date (str): Date string in YYYYMMDD format (optional).
+
+    Returns:
+        dict: Customer data as list of dictionaries.
+    """
     if date is None:
         date = datetime.now().strftime("%Y%m%d")
 
@@ -140,6 +211,15 @@ def get_customers(current_user: User = Depends(get_current_active_user),date: st
 
 @app.get("/v2/suppliers")
 def get_suppliers(date: str = Query(default=None)):
+    """
+    Returns supplier data from GCS for the given date.
+
+    Query Parameters:
+        date (str): Date string in YYYYMMDD format (optional).
+
+    Returns:
+        dict: Supplier data as list of dictionaries.
+    """
     if date is None:
         date = datetime.now().strftime("%Y%m%d")
 
